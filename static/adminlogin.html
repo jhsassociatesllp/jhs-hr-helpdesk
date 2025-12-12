@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JHS HR Helpdesk - Admin Login</title>
+    <link rel="stylesheet" href="/static/adminlogin.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo-section">
+                <h1>👨‍💼 JHS HR Admin</h1>
+                <p>HR Helpdesk Management System</p>
+            </div>
+
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="empCode">Employee Code</label>
+                    <input 
+                        type="text" 
+                        id="empCode" 
+                        placeholder="JHS0001" 
+                        autocomplete="username"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="login-btn">
+                    <span class="btn-text">🔐 Login</span>
+                    <span class="btn-loading hidden">⏳ Logging in...</span>
+                </button>
+            </form>
+
+            <div id="loginMessage" class="message hidden"></div>
+
+            <div class="login-footer">
+                <p>Not registered? <a href="/static/adminregister.html">Register here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/adminlogin.js"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JHS HR Helpdesk - Create Ticket</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>👨‍💼 JHS HR Helpdesk</h1>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="ticket-form-container">
+                <!-- <div class="form-header">
+                    <p>Fill details below</p>
+                </div> -->
+
+                <form id="ticketForm" class="ticket-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="name">Full Name <span class="required">*</span></label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="empCode">Employee Code <span class="required">*</span></label>
+                            <input type="text" id="empCode" name="empCode" placeholder="JHS0001" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email">Email <span class="required">*</span></label>
+                            <input type="email" id="email" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Phone <span class="required">*</span></label>
+                            <input type="tel" id="phone" name="phone" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="category">Category <span class="required">*</span></label>
+                        <select id="category" name="category" required>
+                            <option value="">Select category</option>
+                            <option value="Leave">Leave Request</option>
+                            <option value="Payroll">Payroll Issue</option>
+                            <option value="Benefits">Benefits/Insurance</option>
+                            <option value="Policy">HR Policy</option>
+                            <option value="Promotion">Promotion/Appraisal</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="issue">Issue Description <span class="required">*</span></label>
+                        <textarea id="issue" name="issue" rows="6" 
+                                placeholder="Describe your issue in detail..." required></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">🚀 Submit Ticket</button>
+                        <button type="reset" class="btn-secondary">Reset Form</button>
+                    </div>
+                </form>
+
+                <div id="formMessage" class="message"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
