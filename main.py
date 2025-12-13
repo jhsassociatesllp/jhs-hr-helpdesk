@@ -29,6 +29,7 @@ app.add_middleware(
 )
 
 client = MongoClient(os.getenv("MONGO_CONNECTION_STRING"))
+print(os.getenv("MONGO_CONNECTION_STRING"))
 db = client["HR_Helpdesk"]
 ticketscol = db["Tickets"]
 admins = db["Admins"]
