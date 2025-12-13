@@ -11,11 +11,15 @@ const API_ADMIN = '/api/admin';
 // ✅ FIXED: Matches backend EXACTLY
 const HR_MAPPING = {
     'Unassigned': '', 
-    'Janhavi Gamare': 'janhavi.gamare@jhsassociatesllp.in', 
-    'Darshan Shah': 'darshan.shah@jhsassociates.in',  // FIXED: 6 → 9
-    'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
-    'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
+    // 'Janhavi Gamare': 'janhavi.gamare@jhsassociatesllp.in', 
+    // 'Darshan Shah': 'darshan.shah@jhsassociates.in',  // FIXED: 6 → 9
+    // 'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
+    // 'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
     // 'Other': ''
+    'Janhavi Gamare': 'vasugadde1100@gmaul.com', 
+    'Darshan Shah': 'vasugadde0203@gmail.com', 
+    'Krutika Shivshivkar': 'vasugadde1234@gmail.com', 
+    'Fiza Kudalkar': 'vasugadde1100@gmail.com'
 };
 
 let hrChart = null; let initialized = false; let currentTicket = null;
