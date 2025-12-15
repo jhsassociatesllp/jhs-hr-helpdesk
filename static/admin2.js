@@ -11,23 +11,19 @@ const API_ADMIN = '/api/admin';
 // ✅ FIXED: Matches backend EXACTLY
 const HR_MAPPING = {
     'Unassigned': '', 
-    'Janhavi Gamare': 'janhavi.gamare@jhsassociatesllp.in', 
-    'Darshan Shah': 'darshan.shah@jhsassociates.in',  // FIXED: 6 → 9
-    'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
-    'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
+    // 'Janhavi Gamare': 'janhavi.gamare@jhsassociatesllp.in', 
+    // 'Darshan Shah': 'darshan.shah@jhsassociates.in',  // FIXED: 6 → 9
+    // 'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
+    // 'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
     // 'Other': ''
-    // 'Janhavi Gamare': 'vasugadde1100@gmaul.com', 
-    // 'Darshan Shah': 'vasugadde0203@gmail.com', 
-    // 'Krutika Shivshivkar': 'vasugadde1234@gmail.com', 
-    // 'Fiza Kudalkar': 'vasugadde1100@gmail.com'
+    'Janhavi Gamare': 'vasugadde1100@gmaul.com', 
+    'Darshan Shah': 'vasugadde0203@gmail.com', 
+    'Krutika Shivshivkar': 'vasugadde1234@gmail.com', 
+    'Fiza Kudalkar': 'vasugadde1100@gmail.com'
 };
 
 let hrChart = null; let initialized = false; let currentTicket = null;
 let pendingAction = null; let pendingTicketId = null;
-let currentPage = 1;
-const itemsPerPage = 10;
-let filteredTickets = [];
-
 
 function escapeHtml(text) {
     if (!text) return ''; 
@@ -110,67 +106,6 @@ function logoutAdmin() {
 
 async function loadTickets() {
     const tbody = document.getElementById('ticketBody'); 
-
-    function renderPaginatedTable() {
-        const tbody = document.getElementById("ticketBody");
-        const pagination = document.getElementById("pagination");
-
-        const start = (currentPage - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-
-        const pageItems = filteredTickets.slice(start, end);
-
-        tbody.innerHTML = pageItems
-            .map(t => {
-                const statusBadge = t.status?.toLowerCase() === "open"
-                    ? '<span class="status-open">Open</span>'
-                    : '<span class="status-closed">Closed</span>';
-
-                return `
-                    <tr>
-                        <td><strong>${escapeHtml(t.id)}</strong></td>
-                        <td>${escapeHtml(t.name)}</td>
-                        <td>${escapeHtml(t.email)}</td>
-                        <td>${escapeHtml(t.phone) || '-'}</td>
-                        <td>${escapeHtml(t.empCode) || '-'}</td>
-                        <td>${escapeHtml(t.category)}</td>
-                        <td>${escapeHtml(t.issue?.slice(0,80))}...</td>
-                        <td>${statusBadge}</td>
-                        <td>${escapeHtml(t.assigned || "Unassigned")}</td>
-                        <td>${fmtDateIsoToIST(t.createdAt)}</td>
-                        <td>${fmtDateIsoToIST(t.assignedAt)}</td>
-                        <td>${fmtDateIsoToIST(t.closedAt)}</td>
-                        <td><button class="small delete-btn" onclick="deleteTicket('${escapeHtml(t.id)}')">🗑️</button></td>
-                    </tr>
-                `;
-            })
-            .join("");
-
-        renderPaginationButtons();
-    }
-
-    function renderPaginationButtons() {
-        const pagination = document.getElementById("pagination");
-        const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
-
-        let html = "";
-
-        html += `<button ${currentPage === 1 ? "disabled" : ""} onclick="changePage(${currentPage - 1})">Prev</button>`;
-
-        for (let i = 1; i <= totalPages; i++) {
-            html += `<button class="${currentPage === i ? "active" : ""}" onclick="changePage(${i})">${i}</button>`;
-        }
-
-        html += `<button ${currentPage === totalPages ? "disabled" : ""} onclick="changePage(${currentPage + 1})">Next</button>`;
-
-        pagination.innerHTML = html;
-    }
-
-    function changePage(page) {
-        currentPage = page;
-        renderPaginatedTable();
-    }
-
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:3rem">🔄 Loading tickets...</td></tr>';
 
@@ -237,9 +172,37 @@ async function loadTickets() {
         //         <td><button class="small" onclick="deleteTicket('${escapeHtml(t.id)}')">🗑️</button></td>
         //     </tr>`;
         // }).join('');
-        filteredTickets = tickets;
-        renderPaginatedTable();
+        tbody.innerHTML = tickets.map(t => {
+    const statusBadge = t.status?.toLowerCase() === 'open' 
+        ? '<span class="status-open">Open</span>' 
+        : '<span class="status-closed">Closed</span>';
 
+    return `
+        <tr>
+            <td><strong>${escapeHtml(t.id)}</strong></td>
+            <td>${escapeHtml(t.name)}</td>
+            <td>${escapeHtml(t.email)}</td>
+            <td>${escapeHtml(t.phone) || '-'}</td>
+            <td>${escapeHtml(t.empCode) || '-'}</td>
+            <td>${escapeHtml(t.category)}</td>
+            <td>${escapeHtml(t.issue?.slice(0,80))}...</td>
+
+            <td>${statusBadge}</td>
+
+            <td>${escapeHtml(t.assigned || "Unassigned")}</td>  
+
+            <td>${fmtDateIsoToIST(t.createdAt)}</td>
+            <td>${fmtDateIsoToIST(t.assignedAt)}</td>
+            <td>${fmtDateIsoToIST(t.closedAt)}</td>
+
+            <td>
+                <button class="small delete-btn" onclick="deleteTicket('${escapeHtml(t.id)}')">
+                    🗑️
+                </button>
+            </td>
+        </tr>
+    `;
+}).join('');
 
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:3rem;color:#ef4444">❌ Error loading tickets</td></tr>'; 

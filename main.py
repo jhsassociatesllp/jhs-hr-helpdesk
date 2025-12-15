@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import os
+from fastapi.responses import FileResponse
 
 load_dotenv()
 
@@ -43,14 +44,14 @@ SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASS = os.getenv("SMTP_PASS")
 
 HR_EMAILS = {
-    # 'Janhavi Gamare': 'janhavi.gamare@jhsassociatesllp.in', 
-    # 'Darshan Shah': 'darshan.shah@jhsassociates.in', 
-    # 'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
-    # 'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
-    'Janhavi Gamare': 'vasugadde1100@gmaul.com', 
-    'Darshan Shah': 'vasugadde0203@gmail.com', 
-    'Krutika Shivshivkar': 'vasugadde1234@gmail.com', 
-    'Fiza Kudalkar': 'vasugadde1100@gmail.com'
+    'Janhavi Gamare': 'janhavi.gamare@jhsassociatesllp.in', 
+    'Darshan Shah': 'darshan.shah@jhsassociates.in', 
+    'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
+    'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
+    # 'Janhavi Gamare': 'vasugadde1100@gmaul.com', 
+    # 'Darshan Shah': 'vasugadde0203@gmail.com', 
+    # 'Krutika Shivshivkar': 'vasugadde1234@gmail.com', 
+    # 'Fiza Kudalkar': 'vasugadde1100@gmail.com'
 }
 
 class TicketCreate(BaseModel):
@@ -237,10 +238,14 @@ async def test_email(background_tasks: BackgroundTasks):
     background_tasks.add_task(sendemail, ["your-email@gmail.com"], "JHS HR TEST", "Working!")
     return {"status": "Test sent - check console"}
 
+# @app.get("/", response_class=HTMLResponse)
+# async def read_root():
+#     with open("static/index.html", "r", encoding="utf-8") as f:
+#         return f.read()
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    with open("static/index.html", "r", encoding="utf-8") as f:
-        return f.read()
+    return FileResponse("static/index.html")
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page():

@@ -317,3 +317,29 @@ body { display: flex; min-height: 100vh; }
     margin-top: 1rem;
     min-height: 20px;
 }
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+}
+
+.pagination button {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.pagination button.active {
+    background: #4f46e5;
+    color: white;
+}
+
+.pagination button:disabled {
+    background: #e5e7eb;
+    cursor: not-allowed;
+}
