@@ -15,6 +15,7 @@ const HR_MAPPING = {
     'Darshan Shah': 'darshan.shah@jhsassociates.in',  // FIXED: 6 → 9
     'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
     'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
+    
     // 'Other': ''
     // 'Janhavi Gamare': 'vasugadde1100@gmaul.com', 
     // 'Darshan Shah': 'vasugadde0203@gmail.com', 
