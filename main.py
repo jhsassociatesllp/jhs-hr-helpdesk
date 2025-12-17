@@ -117,7 +117,7 @@ async def admin_login(body: Dict[str, Any]):
         "empCodes": empCode,      # 🔑 array match
         "password": password
     })
-
+    print(admin)
     if not admin:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
