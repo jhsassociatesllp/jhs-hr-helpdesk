@@ -92,16 +92,40 @@ def sendemail(recipients: List[str], subject: str, body: str):
     except Exception as e:
         logger.error(f"❌ EMAIL FAILED → {str(e)}")
 
+# @app.post("/api/admin/login")
+# async def admin_login(body: Dict[str, Any]):
+#     empCode = body.get("empCode")
+#     password = body.get("password")
+#     if not empCode or not password:
+#         raise HTTPException(status_code=400, detail="empCode and password required")
+#     admin = admins.find_one({"empCode": empCode.upper()})
+#     if not admin or admin.get("password") != password:
+#         raise HTTPException(status_code=401, detail="Invalid credentials")
+#     return {"message": "Login successful", "empCode": empCode.upper()}
+
 @app.post("/api/admin/login")
 async def admin_login(body: Dict[str, Any]):
     empCode = body.get("empCode")
     password = body.get("password")
+
     if not empCode or not password:
         raise HTTPException(status_code=400, detail="empCode and password required")
-    admin = admins.find_one({"empCode": empCode.upper()})
-    if not admin or admin.get("password") != password:
+
+    empCode = empCode.upper().strip()
+
+    admin = admins.find_one({
+        "empCodes": empCode,      # 🔑 array match
+        "password": password
+    })
+
+    if not admin:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"message": "Login successful", "empCode": empCode.upper()}
+
+    return {
+        "message": "Login successful",
+        "empCode": empCode,
+        "name": admin.get("name")
+    }
 
 @app.post("/api/admin/register")
 async def admin_register(body: Dict[str, Any]):
