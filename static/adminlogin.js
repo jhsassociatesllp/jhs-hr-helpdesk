@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try {
+            console.log("sending login request")
             const response = await fetch(`${API_ADMIN}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
