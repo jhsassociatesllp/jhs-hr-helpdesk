@@ -61,11 +61,13 @@ class TicketCreate(BaseModel):
     empCode: Optional[str] = None
     category: str
     issue: str
+    
 
 class TicketUpdate(BaseModel):
     assigned: Optional[str] = None
     status: Optional[str] = None
     hrEmail: Optional[str] = None
+    remark: Optional[str] = None  
 
 # ✅ FIXED: Corrected sendemail function
 def sendemail(recipients: List[str], subject: str, body: str):
@@ -158,7 +160,9 @@ async def create_ticket(ticket: TicketCreate, background_tasks: BackgroundTasks)
         "phone": ticket.phone, "empCode": ticket.empCode,
         "category": ticket.category, "issue": ticket.issue,
         "status": "Open", "assigned": "Unassigned", "hrEmail": None,
-        "createdAt": datetime.utcnow()
+        "createdAt": datetime.utcnow(),
+        "remark": ""  # optional but clean
+
     }
     
     ticketscol.insert_one(ticket_data)
@@ -194,6 +198,7 @@ async def update_ticket(ticketid: str, body: TicketUpdate, background_tasks: Bac
     if body.status and body.status.lower() == "closed" and ticket.get("status", "").lower() != "closed":
         update_data["status"] = "Closed"
         update_data["closedAt"] = datetime.utcnow()
+        update_data["remark"] = body.remark   # ✅ ADD THIS
     
     if update_data:
         ticketscol.update_one({"id": ticketid}, {"$set": update_data})
@@ -285,3 +290,5 @@ async def admin_login_page():
 # if __name__ == "__main__":
 #     import uvicorn
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+

@@ -479,7 +479,7 @@ function drawHRChart(byhr) {
                 { 
                     label: 'Open', 
                     data: openData, 
-                    backgroundColor: '#10b981', 
+                    backgroundColor: '#b92410ff', 
                     borderRadius: 8, 
                     borderSkipped: false 
                 }, 

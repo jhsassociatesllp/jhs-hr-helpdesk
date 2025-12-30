@@ -11,14 +11,14 @@
     <div class="sidebar">
         <h3> Admin Panel</h3>
         <button id="btnAnalysis"> Analysis</button>
-        <button id="btnTickets"> Tickets</button>
+        <button id="btnTickets">Tickets</button>
         <button id="btnClose"> Close</button>
         <button id="btnAssign"> Assign</button>
-        <button id="btnLogout"> Logout</button>
+        <button id="btnLogout">Logout</button>
     </div>
 
     <main class="content">
-        <!-- Analysis section unchanged -->
+        <!-- Analysis Section -->
         <section id="analysis" class="section hidden">
             <h2> Dashboard Analytics</h2>
             <div class="stats">
@@ -40,12 +40,12 @@
             </div>
         </section>
 
-        <!-- ✅ UPDATED: Tickets section with Assigned At column -->
+        <!-- Tickets Section -->
         <section id="tickets" class="section">
             <h2> All Tickets</h2>
             <div class="table-controls">
                 <div class="search-row">
-                    <input type="text" id="searchInput" placeholder="Search ticket id, name, email, category...">
+                    <input type="text" id="searchInput" placeholder="🔍 Search ticket id, name, email, category...">
                 </div>
                 <div class="filters-row">
                     <label>From: <input type="date" id="fromDate"></label>
@@ -55,14 +55,14 @@
                         <option value="Open">Open</option>
                         <option value="Closed">Closed</option>
                     </select>
-                    <button id="btnRefresh" class="btn small">Refresh</button>
+                    <button id="btnRefresh" class="btn small"> Refresh</button>
                 </div>
             </div>
             <div class="table-wrap">
                 <table id="ticketTable">
                     <thead>
                         <tr>
-                            <th>Ticket</th>
+                            <th>Ticket ID</th>
                             <th>Name</th>
                             <th>Email</th>
                             <th>Phone</th>
@@ -70,11 +70,12 @@
                             <th>Category</th>
                             <th>Description</th>
                             <th>Status</th>
-                            <th>Assigned To</th>    <!-- ✅ NEW ORDER -->
+                            <th>Assigned To</th>
                             <th>Created Time</th>
                             <th>Assigned Time</th>
                             <th>Closed Time</th>
-                            <th>Action</th>     
+                            <th>Remark</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="ticketBody"></tbody>
@@ -83,55 +84,48 @@
             <div id="pagination" class="pagination"></div>
         </section>
 
-        <!-- Close, Assign sections unchanged -->
+        <!-- Close Section -->
         <section id="closed" class="section hidden">
-            <div class="center-container">
+            <div class="close-container">
                 <h2> Close Ticket</h2>
-                <label for="ticketIdInput">Ticket ID</label>
-                <input id="ticketIdInput" placeholder="Enter ticket id">
-                <div class="center-actions">
-                    <button id="btnFetch" class="action">Fetch Details</button>
+                
+                <div class="close-input-group">
+                    <label for="ticketIdInput"> Ticket ID</label>
+                    <input id="ticketIdInput" placeholder="Enter ticket ID (e.g., TICKJHSHR01)">
+                    <div class="fetch-btn-wrapper">
+                        <button id="btnFetch" class="action"> Fetch Details</button>
+                    </div>
                 </div>
+
                 <div id="ticketDetails" class="ticket-details hidden">
-                    <p><strong>Name:</strong> <span id="ticketName"></span></p>
-                    <p><strong>Email:</strong> <span id="ticketEmail"></span></p>
-                    <p><strong>Issue:</strong> <span id="ticketIssue"></span></p>
-                    <p><strong>Created:</strong> <span id="ticketCreatedAt"></span></p>
-                    <p><strong>Assigned:</strong> <span id="ticketAssigned"></span></p>
-                    <p><strong>Assigned At:</strong> <span id="ticketAssignedAt"></span></p> <!-- ✅ NEW -->
+                    <p><strong> Name:</strong> <span id="ticketName"></span></p>
+                    <p><strong> Email:</strong> <span id="ticketEmail"></span></p>
+                    <p><strong> Issue:</strong> <span id="ticketIssue"></span></p>
+                    <p><strong> Created:</strong> <span id="ticketCreatedAt"></span></p>
+                    <p><strong>Assigned To:</strong> <span id="ticketAssigned"></span></p>
+                    <p><strong>Assigned At:</strong> <span id="ticketAssignedAt"></span></p>
                     <p><strong>Closed:</strong> <span id="ticketClosedAt"></span></p>
+                    
+                    <div class="remark-section">
+                        <label for="closeRemark"><strong>Remark (Mandatory):</strong></label>
+                        <textarea id="closeRemark" placeholder="Enter closing remark here..." rows="4" required></textarea>
+                    </div>
+                    
                     <div class="close-actions">
                         <button id="btnMarkClosed" class="btn-close">Mark Closed & Notify</button>
                     </div>
                 </div>
+                
                 <p id="closedMsg" class="msg-success"></p>
             </div>
         </section>
 
-        <!-- <section id="assign" class="section hidden">
-            <h2>👤 Assign Tickets</h2>
-            <div class="assign-container">
-                <div class="assign-row">
-                    <input id="assignTicketId" placeholder="Enter Ticket ID e.g. TICKJHSHR01">
-                    <select id="assignHrName">
-                        <option value="">Select HR Name</option>
-                    </select>
-                    <select id="assignHrEmail">
-                        <option value="">HR Email (auto-filled)</option>
-                    </select>
-                    <button id="assignSaveBtn" class="action">Assign & Send Emails</button>
-                </div>
-                <div id="assignMsg"></div>
-            </div>
-            <h3>Quick Assign (Recent Tickets)</h3>
-            <div id="quickAssignList" class="quick-list"></div>
-        </section> -->
-
+        <!-- Assign Section -->
         <section id="assign" class="section hidden">
-            <h2>👤 Assign Tickets</h2>
+            <h2> Assign Tickets</h2>
 
             <div class="assign-center-box">
-                <input id="assignTicketId" class="assign-input" placeholder="Enter Ticket ID e.g. TICKJHSHR01">
+                <input id="assignTicketId" class="assign-input" placeholder="Enter Ticket ID (e.g., TICKJHSHR01)">
 
                 <select id="assignHrName" class="assign-input">
                     <option value="">Select HR Name</option>
@@ -141,15 +135,14 @@
                     <option value="">Select Email</option>
                 </select>
 
-                <button id="assignSaveBtn" class="assign-btn">Assign & Send Emails</button>
+                <button id="assignSaveBtn" class="assign-btn">✅ Assign & Send Emails</button>
 
                 <p id="assignMsg" class="assign-msg"></p>
             </div>
         </section>
-
     </main>
 
-    <!-- Confirmation Popup unchanged -->
+    <!-- Confirmation Popup -->
     <div id="confirmPopup" class="popup-overlay">
         <div class="popup-box">
             <h3 id="popupTitle">Confirm Action</h3>

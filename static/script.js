@@ -17,11 +17,19 @@ function validateForm(formData) {
     }
     
     // Employee Code validation (JHS + exactly 4 digits)
-    if (!formData.empCode.trim()) {
-        errors.push('Employee code is required');
-    } else if (!/^JHS\d{4}$/.test(formData.empCode.trim().toUpperCase())) {
-        errors.push('Employee code must be in format JHS0001');
-    }
+    // if (!formData.empCode.trim()) {
+    //     errors.push('Employee code is required');
+    // } else if (!/^JHS\d{4}$/.test(formData.empCode.trim().toUpperCase())) {
+    //     errors.push('Employee code must be in format JHS0001');
+    // }
+
+    // Employee Code validation (optional, but if filled must start with JHS)
+    if (formData.empCode.trim()) { 
+    if (!/^JHS/.test(formData.empCode.trim().toUpperCase())) {
+        errors.push('Employee code must start with JHS');
+     }
+     }
+
     
     // Email validation (.com or .in only)
     if (!formData.email.trim()) {
@@ -113,7 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) {
                 throw new Error(result.detail || 'Submission failed');
             }
-            
+                 
+
             // Success!
             showMessage(
                 `🎉 Ticket created successfully!<br>` +
@@ -163,4 +172,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
 
