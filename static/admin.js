@@ -1,8 +1,8 @@
 
 // API Configuration
-// const API_URL = '/api/tickets';
-const API_URL = " ";
-// const API_ADMIN = '/api/admin';
+const API_URL = '/api/tickets';
+// const API_URL = " ";
+const API_ADMIN = '/api/admin';
 
 // HR Mapping
 const HR_MAPPING = {
