@@ -1026,3 +1026,49 @@ body {
         padding: 1.5rem;
     }
 }
+
+/* Add these rules to your admin.css to fix table column sizing */
+
+/* Make table columns fit content better */
+#ticketTable th, #ticketTable td { 
+    padding: 1rem 0.75rem; 
+    text-align: left; 
+    border-bottom: 1px solid #f1f5f9; 
+    white-space: nowrap; /* Prevent wrapping */
+}
+
+/* Specific column widths for better fit */
+#ticketTable th:nth-child(1), #ticketTable td:nth-child(1) { width: auto; min-width: 130px; } /* Ticket ID */
+#ticketTable th:nth-child(2), #ticketTable td:nth-child(2) { width: auto; min-width: 150px; } /* Name */
+#ticketTable th:nth-child(3), #ticketTable td:nth-child(3) { width: auto; min-width: 200px; } /* Email */
+#ticketTable th:nth-child(4), #ticketTable td:nth-child(4) { width: auto; min-width: 120px; } /* Phone */
+#ticketTable th:nth-child(5), #ticketTable td:nth-child(5) { width: auto; min-width: 100px; } /* Emp Code */
+#ticketTable th:nth-child(6), #ticketTable td:nth-child(6) { width: auto; min-width: 130px; } /* Category */
+#ticketTable th:nth-child(7), #ticketTable td:nth-child(7) { 
+    width: auto; 
+    min-width: 200px; 
+    max-width: 300px; 
+    white-space: normal; /* Allow wrapping for description */
+    word-wrap: break-word;
+} /* Description */
+#ticketTable th:nth-child(8), #ticketTable td:nth-child(8) { width: auto; min-width: 90px; } /* Status */
+#ticketTable th:nth-child(9), #ticketTable td:nth-child(9) { width: auto; min-width: 150px; } /* Assigned To */
+#ticketTable th:nth-child(10), #ticketTable td:nth-child(10) { width: auto; min-width: 160px; } /* Created Time */
+#ticketTable th:nth-child(11), #ticketTable td:nth-child(11) { width: auto; min-width: 160px; } /* Assigned Time */
+#ticketTable th:nth-child(12), #ticketTable td:nth-child(12) { width: auto; min-width: 160px; } /* Closed Time */
+#ticketTable th:nth-child(13), #ticketTable td:nth-child(13) { 
+    width: auto; 
+    min-width: 150px;
+    max-width: 200px;
+    white-space: normal;
+    word-wrap: break-word;
+} /* Remark */
+#ticketTable th:nth-child(14), #ticketTable td:nth-child(14) { width: auto; min-width: 100px; text-align: center; } /* Action */
+
+/* Adjust table min-width */
+#ticketTable { 
+    width: 100%; 
+    border-collapse: collapse; 
+    background: white; 
+    min-width: 1800px; /* Increased to accommodate all columns */
+}
