@@ -42,6 +42,7 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASS = os.getenv("SMTP_PASS")
+print(f"Email: {SMTP_USER}, Pass: {SMTP_PASS}")
 
 HR_EMAILS = {
     'Janhavi Gamare': 'janhavi.gamare@jhsassociatesllp.in', 
