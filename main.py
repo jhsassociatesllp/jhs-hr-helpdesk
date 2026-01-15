@@ -365,6 +365,7 @@ async def test_email(background_tasks: BackgroundTasks, admin=Depends(get_curren
 #     with open("static/index.html", "r", encoding="utf-8") as f:
 #         return f.read()
 
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     return FileResponse("static/index.html")
