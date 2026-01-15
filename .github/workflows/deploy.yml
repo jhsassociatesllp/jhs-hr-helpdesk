@@ -1,63 +1,3 @@
-# name: 🚀 Deploy HR Helpdesk
-
-# on:
-#   push:
-#     branches:
-#       - main
-#       - staging
-
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: Setup SSH
-#         uses: webfactory/ssh-agent@v0.8.0
-#         with:
-#           ssh-private-key: ${{ secrets.SERVER_KEY }}
-
-#       - name: Deploy to Server
-#         run: |
-#           BRANCH=${GITHUB_REF_NAME}
-
-#           if [ "$BRANCH" = "main" ]; then
-#             TAG="production"
-#             APP_NAME="hr_helpdesk_production"
-#             PORT=8025
-#           else
-#             TAG="staging"
-#             APP_NAME="hr_helpdesk_staging"
-#             PORT=8024
-#           fi
-
-#           IMAGE="ghcr.io/jhsassociatesllp/hr-helpdesk:$TAG"
-
-#           ssh -p ${{ secrets.SERVER_PORT }} -o StrictHostKeyChecking=no \
-#             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-              
-#               echo '🔐 GHCR Login'
-#               echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-
-#               echo '📥 Pulling image...'
-#               docker pull $IMAGE
-
-#               echo '🛑 Stopping old container...'
-#               docker stop $APP_NAME || true
-#               docker rm $APP_NAME || true
-
-#               echo '▶️ Starting new container...'
-#               docker run -d \
-#                 --name $APP_NAME \
-#                 -p $PORT:8000 \
-#                 -e MONGO_CONNECTION_STRING='${{ secrets.MONGO_CONNECTION_STRING }}' \
-#                 -e SMTP_USER='${{ secrets.SMTP_USER }}' \
-#                 -e SMTP_PASS='${{ secrets.SMTP_PASS }}' \
-#                 $IMAGE
-
-#               echo '🧹 Cleaning unused images...'
-#               docker image prune -f
-#           "
-
 name: 🚀 Deploy HR Helpdesk
 
 on:
@@ -98,7 +38,7 @@ jobs:
               echo '🔐 GHCR Login'
               echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
 
-              echo '📥 Pulling latest image...'
+              echo '📥 Pulling image...'
               docker pull $IMAGE
 
               echo '🛑 Stopping old container...'
@@ -112,6 +52,7 @@ jobs:
                 -e MONGO_CONNECTION_STRING='${{ secrets.MONGO_CONNECTION_STRING }}' \
                 -e SMTP_USER='${{ secrets.SMTP_USER }}' \
                 -e SMTP_PASS='${{ secrets.SMTP_PASS }}' \
+                -e JWT_SECRET='${{ secrets.JWT_SECRET }}'
                 $IMAGE
 
               echo '🧹 Cleaning unused images...'
