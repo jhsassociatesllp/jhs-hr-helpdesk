@@ -52,7 +52,7 @@ jobs:
                 -e MONGO_CONNECTION_STRING='${{ secrets.MONGO_CONNECTION_STRING }}' \
                 -e SMTP_USER='${{ secrets.SMTP_USER }}' \
                 -e SMTP_PASS='${{ secrets.SMTP_PASS }}' \
-                -e JWT_SECRET='${{ secrets.JWT_SECRET }}'
+                -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
                 $IMAGE
 
               echo '🧹 Cleaning unused images...'
