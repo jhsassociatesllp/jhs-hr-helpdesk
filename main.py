@@ -15,6 +15,9 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import os
 from fastapi.responses import FileResponse
+from jose import JWTError, jwt
+from fastapi import Depends, Header
+from datetime import timedelta
 
 load_dotenv()
 
@@ -28,6 +31,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-key-change-this")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 client = MongoClient(os.getenv("MONGO_CONNECTION_STRING"))
 print(os.getenv("MONGO_CONNECTION_STRING"))
@@ -71,6 +78,28 @@ class TicketUpdate(BaseModel):
     hrEmail: Optional[str] = None
     remark: Optional[str] = None  
 
+def get_current_admin(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+
+    token = authorization.split(" ")[1]
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Not authorized")
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
 # ✅ FIXED: Corrected sendemail function
 def sendemail(recipients: List[str], subject: str, body: str):
     logger.info(f"🔄 EMAIL ATTEMPT → Recipients: {recipients}, Subject: {subject}")
@@ -107,32 +136,63 @@ def sendemail(recipients: List[str], subject: str, body: str):
 #         raise HTTPException(status_code=401, detail="Invalid credentials")
 #     return {"message": "Login successful", "empCode": empCode.upper()}
 
+# @app.post("/api/admin/login")
+# async def admin_login(body: Dict[str, Any]):
+#     empCode = body.get("empCode")
+#     password = body.get("password")
+
+#     if not empCode or not password:
+#         raise HTTPException(status_code=400, detail="empCode and password required")
+
+#     empCode = empCode.upper().strip()
+
+#     admin = admins.find_one({
+#         "empCodes": empCode,      # 🔑 array match
+#         "password": password
+#     })
+#     print(admin)
+#     if not admin:
+#         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+#     return {
+#         "message": "Login successful",
+#         "empCode": empCode,
+#         "name": admin.get("name")
+#     }
+
+from datetime import timedelta
+
 @app.post("/api/admin/login")
 async def admin_login(body: Dict[str, Any]):
-    empCode = body.get("empCode")
+    empCode = body.get("empCode", "").upper().strip()
     password = body.get("password")
 
     if not empCode or not password:
         raise HTTPException(status_code=400, detail="empCode and password required")
 
-    empCode = empCode.upper().strip()
-
     admin = admins.find_one({
-        "empCodes": empCode,      # 🔑 array match
+        "empCodes": empCode,
         "password": password
     })
-    print(admin)
+
     if not admin:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    token = create_access_token({
+        "sub": empCode,
+        "role": "admin",
+        "name": admin.get("name")
+    })
+
     return {
-        "message": "Login successful",
-        "empCode": empCode,
+        "access_token": token,
+        "token_type": "bearer",
         "name": admin.get("name")
     }
 
+
 @app.post("/api/admin/register")
-async def admin_register(body: Dict[str, Any]):
+async def admin_register(body: Dict[str, Any], admin=Depends(get_current_admin)):
     name = body.get("name")
     empCode = body.get("empCode")
     password = body.get("password")
@@ -149,7 +209,7 @@ async def admin_register(body: Dict[str, Any]):
     return {"message": f"Admin {empCode} registered successfully"}
 
 @app.get("/api/tickets")
-async def get_tickets():
+async def get_tickets(admin=Depends(get_current_admin)):
     return list(ticketscol.find({}, {"_id": 0}).sort("createdAt", -1))
 
 @app.post("/api/tickets")
@@ -182,7 +242,7 @@ async def create_ticket(ticket: TicketCreate, background_tasks: BackgroundTasks)
 
 
 @app.put("/api/tickets/{ticketid}")
-async def update_ticket(ticketid: str, body: TicketUpdate, background_tasks: BackgroundTasks):
+async def update_ticket(ticketid: str, body: TicketUpdate, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
     ticket = ticketscol.find_one({"id": ticketid})
     if not ticket: 
         raise HTTPException(404, "Ticket not found")
@@ -236,36 +296,60 @@ async def update_ticket(ticketid: str, body: TicketUpdate, background_tasks: Bac
     return {"message": "Updated", "ticketId": ticketid}
 
 @app.delete("/api/tickets/{ticketid}")
-async def delete_ticket(ticketid: str):
+async def delete_ticket(ticketid: str, admin=Depends(get_current_admin)):
     result = ticketscol.delete_one({"id": ticketid})
     if result.deleted_count == 0: raise HTTPException(404, "Ticket not found")
     return {"message": "Deleted"}
 
-@app.get("/api/tickets/stats")
-async def get_tickets_stats():
-    tickets = list(ticketscol.find({}, {"_id": 0}))
-    stats = {"total": len(tickets), "bystatus": {}, "byhr": {}}
+# @app.get("/api/tickets/stats")
+# async def get_tickets_stats():
+#     tickets = list(ticketscol.find({}, {"_id": 0}))
+#     stats = {"total": len(tickets), "bystatus": {}, "byhr": {}}
     
+#     for t in tickets:
+#         status = t.get("status", "Open")
+#         hr = t.get("assigned", "Unassigned")
+#         stats["bystatus"][status] = stats["bystatus"].get(status, 0) + 1
+        
+#         if hr not in stats["byhr"]:
+#             stats["byhr"][hr] = {"Open": 0, "Closed": 0}
+#         stats["byhr"][hr][status] = stats["byhr"][hr].get(status, 0) + 1
+    
+#     return stats
+
+@app.get("/api/admin/stats")
+async def get_admin_stats(current_admin: dict = Depends(get_current_admin)):
+    tickets = list(ticketscol.find({}, {"_id": 0}))
+
+    stats = {
+        "total": len(tickets),
+        "bystatus": {"Open": 0, "Closed": 0},
+        "byhr": {}
+    }
+
     for t in tickets:
         status = t.get("status", "Open")
         hr = t.get("assigned", "Unassigned")
-        stats["bystatus"][status] = stats["bystatus"].get(status, 0) + 1
-        
+
+        stats["bystatus"][status] += 1
+
         if hr not in stats["byhr"]:
             stats["byhr"][hr] = {"Open": 0, "Closed": 0}
-        stats["byhr"][hr][status] = stats["byhr"][hr].get(status, 0) + 1
-    
+
+        stats["byhr"][hr][status] += 1
+
     return stats
 
+
 @app.get("/api/tickets/{ticketid}")
-async def get_ticket(ticketid: str):
+async def get_ticket(ticketid: str, admin=Depends(get_current_admin)):
     ticket = ticketscol.find_one({"id": ticketid})
     if not ticket: raise HTTPException(404, "Ticket not found")
     ticket.pop("_id", None)
     return ticket
 
 @app.get("/test-email")
-async def test_email(background_tasks: BackgroundTasks):
+async def test_email(background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
     background_tasks.add_task(sendemail, ["your-email@gmail.com"], "JHS HR TEST", "Working!")
     return {"status": "Test sent - check console"}
 
@@ -292,8 +376,6 @@ async def admin_login_page():
 # if __name__ == "__main__":
 #     import uvicorn
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
 
 
 

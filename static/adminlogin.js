@@ -8,6 +8,24 @@ function showMessage(message, type = 'success') {
     msgEl.classList.remove('hidden');
 }
 
+function authFetch(url, options = {}) {
+    const token = localStorage.getItem('adminToken');
+
+    if (!token) {
+        logoutAdmin();
+        return;
+    }
+
+    return fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...(options.headers || {})
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('loginForm');
     
@@ -50,9 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(result.detail || 'Login failed');
             }
             
-            localStorage.setItem('adminLoggedIn', 'true');
-            localStorage.setItem('adminEmpCode', formData.empCode);
+            // localStorage.setItem('adminLoggedIn', 'true');
+            // localStorage.setItem('adminEmpCode', formData.empCode);
+            // window.location.href = 'admin.html';
+
+            localStorage.setItem('adminToken', result.access_token);
+            localStorage.setItem('adminName', result.name);
             window.location.href = 'admin.html';
+
             
         } catch (error) {
             console.error('Login error:', error);
