@@ -39,6 +39,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 client = MongoClient(os.getenv("MONGO_CONNECTION_STRING"))
 print(os.getenv("MONGO_CONNECTION_STRING"))
+print("Secret Key: ",SECRET_KEY)
 db = client["HR_Helpdesk"]
 ticketscol = db["Tickets"]
 admins = db["Admins"]
@@ -95,6 +96,7 @@ def get_current_admin(authorization: str = Header(None)):
 
 
 def create_access_token(data: dict):
+    print("Creating access token")
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
