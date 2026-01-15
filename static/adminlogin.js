@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             localStorage.setItem('adminToken', result.access_token);
             localStorage.setItem('adminName', result.name);
-            window.location.href = 'admin.html';
+            window.location.href = '/admin';
 
             
         } catch (error) {

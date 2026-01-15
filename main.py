@@ -23,7 +23,10 @@ load_dotenv()
 
 app = FastAPI(title="JHS HR Helpdesk API")
 print("🚀 UPDATED CODE FROM GITHUB RUNNING")
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+frontend_path = os.path.join(os.path.dirname(__file__), "static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -366,10 +369,9 @@ async def test_email(background_tasks: BackgroundTasks, admin=Depends(get_curren
 async def read_root():
     return FileResponse("static/index.html")
 
-@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin", response_class=FileResponse)
 async def admin_page():
-    with open("static/admin.html", "r", encoding="utf-8") as f:
-        return f.read()
+    return FileResponse(os.path.join(frontend_path, "admin.html"))
 
 @app.get("/adminlogin", response_class=HTMLResponse)
 async def admin_login_page():

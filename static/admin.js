@@ -109,7 +109,6 @@ function logoutAdmin() {
 // ==========================
 document.addEventListener('DOMContentLoaded', () => {
     if (!localStorage.getItem('adminToken')) {
-        conso   
         window.location.replace('/adminlogin');
         return;
     }
