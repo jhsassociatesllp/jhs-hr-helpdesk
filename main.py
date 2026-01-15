@@ -195,7 +195,6 @@ async def admin_login(body: Dict[str, Any]):
         "name": admin.get("name")
     }
 
-
 @app.post("/api/admin/register")
 async def admin_register(body: Dict[str, Any], admin=Depends(get_current_admin)):
     name = body.get("name")
