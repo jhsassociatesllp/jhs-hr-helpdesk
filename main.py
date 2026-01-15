@@ -22,6 +22,7 @@ from datetime import timedelta
 load_dotenv()
 
 app = FastAPI(title="JHS HR Helpdesk API")
+print("🚀 UPDATED CODE FROM GITHUB RUNNING")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
