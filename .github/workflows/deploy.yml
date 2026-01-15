@@ -1,24 +1,96 @@
+# name: 🚀 Deploy HR Helpdesk
+
+# on:
+#   push:
+#     branches:
+#       - main
+#       - staging
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Setup SSH
+#         uses: webfactory/ssh-agent@v0.8.0
+#         with:
+#           ssh-private-key: ${{ secrets.SERVER_KEY }}
+
+#       - name: Deploy to Server
+#         run: |
+#           BRANCH=${GITHUB_REF_NAME}
+
+#           if [ "$BRANCH" = "main" ]; then
+#             TAG="production"
+#             APP_NAME="hr_helpdesk_production"
+#             PORT=8025
+#           else
+#             TAG="staging"
+#             APP_NAME="hr_helpdesk_staging"
+#             PORT=8024
+#           fi
+
+#           IMAGE="ghcr.io/jhsassociatesllp/hr-helpdesk:$TAG"
+
+#           ssh -p ${{ secrets.SERVER_PORT }} -o StrictHostKeyChecking=no \
+#             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+              
+#               echo '🔐 GHCR Login'
+#               echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+#               echo '📥 Pulling image...'
+#               docker pull $IMAGE
+
+#               echo '🛑 Stopping old container...'
+#               docker stop $APP_NAME || true
+#               docker rm $APP_NAME || true
+
+#               echo '▶️ Starting new container...'
+#               docker run -d \
+#                 --name $APP_NAME \
+#                 -p $PORT:8000 \
+#                 -e MONGO_CONNECTION_STRING='${{ secrets.MONGO_CONNECTION_STRING }}' \
+#                 -e SMTP_USER='${{ secrets.SMTP_USER }}' \
+#                 -e SMTP_PASS='${{ secrets.SMTP_PASS }}' \
+#                 -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
+#                 $IMAGE
+
+#               echo '🧹 Cleaning unused images...'
+#               docker image prune -f
+#           "
+
+
+
 name: 🚀 Deploy HR Helpdesk
 
+# Trigger deploy only after Build & Push workflow completes
 on:
-  push:
-    branches:
-      - main
-      - staging
+  workflow_run:
+    workflows: ["Build & Push HR Helpdesk Image"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Setup SSH
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.SERVER_KEY }}
 
+      # 2️⃣ Deploy to server
       - name: Deploy to Server
         run: |
+          # Set branch-specific variables
           BRANCH=${GITHUB_REF_NAME}
+          SHA=${{ github.event.workflow_run.head_sha }}
 
           if [ "$BRANCH" = "main" ]; then
             TAG="production"
@@ -30,29 +102,31 @@ jobs:
             PORT=8024
           fi
 
-          IMAGE="ghcr.io/jhsassociatesllp/hr-helpdesk:$TAG"
+          # Immutable image with SHA
+          IMAGE="ghcr.io/jhsassociatesllp/hr-helpdesk:${TAG}-${SHA}"
 
           ssh -p ${{ secrets.SERVER_PORT }} -o StrictHostKeyChecking=no \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-              
-              echo '🔐 GHCR Login'
-              echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
 
-              echo '📥 Pulling image...'
+              echo '🔐 Logging in to GHCR...'
+              docker login ghcr.io -u '${{ github.actor }}' -p '${{ secrets.GHCR_PAT }}'
+
+              echo '📥 Pulling exact image: $IMAGE'
               docker pull $IMAGE
 
-              echo '🛑 Stopping old container...'
-              docker stop $APP_NAME || true
-              docker rm $APP_NAME || true
+              echo '🛑 Stopping old container if exists...'
+              docker stop ${APP_NAME} || true
+              docker rm ${APP_NAME} || true
 
               echo '▶️ Starting new container...'
               docker run -d \
-                --name $APP_NAME \
-                -p $PORT:8000 \
+                --name ${APP_NAME} \
+                -p ${PORT}:8000 \
                 -e MONGO_CONNECTION_STRING='${{ secrets.MONGO_CONNECTION_STRING }}' \
                 -e SMTP_USER='${{ secrets.SMTP_USER }}' \
                 -e SMTP_PASS='${{ secrets.SMTP_PASS }}' \
                 -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
+                --restart unless-stopped \
                 $IMAGE
 
               echo '🧹 Cleaning unused images...'
