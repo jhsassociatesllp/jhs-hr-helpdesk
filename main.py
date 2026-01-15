@@ -187,6 +187,7 @@ async def admin_login(body: Dict[str, Any]):
         "role": "admin",
         "name": admin.get("name")
     })
+    print(f"Token: {token}")
 
     return {
         "access_token": token,
