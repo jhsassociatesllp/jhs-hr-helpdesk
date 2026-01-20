@@ -569,6 +569,9 @@ async def admin_login_page():
 
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("static/favicon.ico")
 
 
 
