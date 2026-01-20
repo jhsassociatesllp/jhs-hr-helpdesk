@@ -25,10 +25,6 @@ app = FastAPI(title="JHS HR Helpdesk API")
 print("🚀 UPDATED CODE FROM GITHUB RUNNING")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
-    return FileResponse("static/favicon.ico")
-
 frontend_path = os.path.join(os.path.dirname(__file__), "static")
 
 app.add_middleware(
