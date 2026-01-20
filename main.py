@@ -26,6 +26,9 @@ print("🚀 UPDATED CODE FROM GITHUB RUNNING")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 frontend_path = os.path.join(os.path.dirname(__file__), "static")
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse(os.path.join("static", "favicon.ico"))
 
 app.add_middleware(
     CORSMiddleware,
@@ -565,6 +568,9 @@ async def admin_login_page():
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
+@app.get("/.well-known/{path:path}")
+async def ignore_well_known(path: str):
+    return {}
 
 
 
