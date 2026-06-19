@@ -2,7 +2,7 @@
 
 
 // ========== CONFIG ==========
-const API_URL = 'http://localhost:8000/api/tickets';
+const API_URL = '/api/tickets';
 // const API_URL = '/api/tickets';
 
 // ========== FORM VALIDATION ==========
