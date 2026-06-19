@@ -197,6 +197,8 @@ jobs:
                 -e SMTP_USER='${{ secrets.SMTP_USER }}' \
                 -e SMTP_PASS='${{ secrets.SMTP_PASS }}' \
                 -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
+                -e SENDER_EMAIL='${{ secrets.SENDER_EMAIL }}' \
+                -e SENDER_NAME='${{ secrets.SENDER_NAME }}' \
                 $IMAGE
 
               docker image prune -f
