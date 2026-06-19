@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JHS IT Helpdesk - Create Ticket</title>
+  <link rel="stylesheet" href="itstyle.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">
+        <h1>JHS IT Helpdesk</h1>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div class="ticket-form-container">
+        <div class="form-header">
+     
+        </div>
+
+        <form id="ticketForm" class="ticket-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Full Name <span class="required">*</span></label>
+              <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="form-group">
+              <label for="email">Email ID <span class="required">*</span></label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="your.email@jhs.co.in or personal@gmail.com"
+                required
+              >
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="phone">Contact Number <span class="required">*</span></label>
+              <input type="tel" id="phone" name="phone" required>
+            </div>
+
+            <div class="form-group">
+              <label for="assetCode">IT Asset Code</label>
+              <input type="text" id="assetCode" name="assetCode">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>IT Issues (select all that apply) <span class="required">*</span></label>
+            <div class="checkbox-group">
+              <label><input type="checkbox" name="issues" value="Hardware"> Hardware</label>
+              <label><input type="checkbox" name="issues" value="Software"> Software</label>
+              <label><input type="checkbox" name="issues" value="Network"> Network</label>
+              <label><input type="checkbox" name="issues" value="Email"> Email</label>
+              <label><input type="checkbox" name="issues" value="SharePoint Data"> SharePoint data</label>
+              <label><input type="checkbox" name="issues" value="MSD"> MSD</label>
+              <label class="other-wrap">
+                <input type="checkbox" id="issueOtherChk" value="Other">
+                Other:
+                <input type="text" id="issueOtherText" placeholder="Specify other issue">
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="issueDescription">IT Issue Description <span class="required">*</span></label>
+            <textarea
+              id="issueDescription"
+              name="issueDescription"
+              rows="6"
+              placeholder="Describe your IT issue in detail..."
+              required
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="reportingPartner">Reporting Partner <span class="required">*</span></label>
+            <select id="reportingPartner" name="reportingPartner" required>
+              <option value="">Select Reporting Partner</option>
+              <option>Tasnim Tankiwala</option>
+              <option>Jamal Chatriwala</option>
+              <option>Taher Pepermintwala</option>
+              <option>Huzefa Mala</option>
+              <option>Sahil Shah</option>
+              <option>Tausif Shaikh</option>
+              <option>Samad Dhanani</option>
+              <option>Disha Shah</option>
+              <option>Nikhel Kochhar</option>
+              <option>Hitesh Khandelwal</option>
+              <option>Sunil Pathak</option>
+              <option>Jagdish Solanki</option>
+              <option>Narayana Rao Malla</option>
+              <option>Pranal P</option>
+              <option>Chandra Sekaran</option>
+              <option>Virendra Nayyar</option>
+              <option>Saurabh Shah</option>
+              <option>Dhaval Thakkar</option>
+              <option>Viranch Modi</option>
+              <option>Shreena Panara</option>
+              <option>Milin Parekh</option>
+              <option>Mehul Shah </option>
+              <option>Alpesh Vaniya</option>
+              <option>Raj Shah</option>
+              <option>Huzeifa Unwala </option>
+              <option>Huzeifa Kaka</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Submit Ticket</button>
+            <button type="reset" class="btn-secondary">Reset Form</button>
+          </div>
+        </form>
+
+        <div id="formMessage" class="message hidden"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="itscript.js"></script>
+</body>
+</html> 
+
+

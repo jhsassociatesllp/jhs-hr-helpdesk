@@ -1,4 +1,3 @@
-
 // ============================================================
 // admin.js - JHS HR Help Desk Admin Panel
 // ============================================================
@@ -8,13 +7,13 @@ const API_URL = '/api/tickets';
 const API_ADMIN = '/api/admin';
 
 // HR Mapping
-const HR_MAPPING = {
-    'Unassigned': '', 
-    'Janhavi Gamare': 'janhavi.gamare@jhsassociatesllp.in', 
-    'Darshan Shah': 'darshan.shah@jhsassociates.in', 
-    'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
-    'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
-};
+// const HR_MAPPING = {
+//     'Unassigned': '', 
+//     'Janhavi Gamare': 'janhavi.gamare@jhsassociatesllp.in', 
+//     'Darshan Shah': 'darshan.shah@jhsassociates.in', 
+//     'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
+//     'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
+// };
 
 // Global variables
 let hrChart = null;
@@ -71,6 +70,43 @@ function fmtDateIsoToIST(d) {
     }
 }
 
+function parseDate(d) {
+    if (!d) return null;
+    // If already has timezone info (Z, +, or offset), parse directly
+    if (/Z|[+-]\d{2}:\d{2}$/.test(d)) return new Date(d);
+    // If has a space instead of T (e.g. "2026-01-15 09:40:00"), normalize it
+    const normalized = d.replace(' ', 'T');
+    // Try appending Z only if no timezone present
+    const dt = new Date(normalized + 'Z');
+    if (!isNaN(dt)) return dt;
+    // Fallback: parse as-is
+    return new Date(d);
+}
+
+function calcResolutionTime(assignedAt, closedAt) {
+    if (!assignedAt || !closedAt) return '-';
+    try {
+        const start = parseDate(assignedAt);
+        const end = parseDate(closedAt);
+        if (!start || !end || isNaN(start) || isNaN(end)) return '-';
+        const diffMs = end - start;
+        if (diffMs < 0) return '-';
+
+        const totalMins = Math.floor(diffMs / 60000);
+        const days = Math.floor(totalMins / 1440);
+        const hours = Math.floor((totalMins % 1440) / 60);
+        const mins = totalMins % 60;
+
+        let parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (mins > 0 || parts.length === 0) parts.push(`${mins}m`);
+        return parts.join(' ');
+    } catch {
+        return '-';
+    }
+}
+
 function debounce(fn, delay) {
     let timeout;
     return (...args) => {
@@ -124,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Filters
     document.getElementById('btnRefresh')?.addEventListener('click', resetFiltersAndReload);
+    document.getElementById('btnDownloadExcel')?.addEventListener('click', downloadExcel);
     document.getElementById('searchInput')?.addEventListener('input', debounce(loadTickets, 300));
     document.getElementById('fromDate')?.addEventListener('change', loadTickets);
     document.getElementById('toDate')?.addEventListener('change', loadTickets);
@@ -135,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentTicket?.id) return;
         const remark = document.getElementById('closeRemark')?.value.trim();
         if (!remark) {
-            alert('⚠️ Remark is mandatory to close the ticket');
+            alert(' Remark is mandatory to close the ticket');
             return;
         }
         showConfirm('Close Ticket', `Do you really want to CLOSE ticket <strong>${currentTicket.id}</strong>?`, 'close');
@@ -190,7 +227,7 @@ async function loadTickets() {
     const tbody = document.getElementById('ticketBody');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:3rem">🔄 Loading tickets...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:3rem">🔄 Loading tickets...</td></tr>';
 
     try {
         const res = await authFetch(API_URL);
@@ -231,14 +268,22 @@ async function loadTickets() {
         }
 
         if (!tickets.length) {
-            tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:3rem;color:#64748b">📭 No tickets found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:3rem;color:#64748b">📭 No tickets found</td></tr>';
             return;
         }
 
         filteredTickets = tickets;
+        // Debug: log first ticket's date fields to console so you can verify format
+        if (tickets.length > 0) {
+            console.log('[DEBUG] Sample ticket dates:', {
+                assignedAt: tickets[0].assignedAt,
+                closedAt: tickets[0].closedAt,
+                createdAt: tickets[0].createdAt
+            });
+        }
         renderPaginatedTable();
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:3rem;color:#ef4444">❌ Error loading tickets</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:3rem;color:#ef4444">❌ Error loading tickets</td></tr>';
         console.error(e);
     }
 }
@@ -257,6 +302,9 @@ function renderPaginatedTable() {
                 ? '<span class="status-open">Open</span>'
                 : '<span class="status-closed">Closed</span>';
 
+            const resolutionTime = calcResolutionTime(t.assignedAt, t.closedAt);
+            const resolutionClass = resolutionTime !== '-' ? 'resolution-time' : 'resolution-na';
+
             return `
                 <tr>
                     <td><strong>${escapeHtml(t.id)}</strong></td>
@@ -271,6 +319,7 @@ function renderPaginatedTable() {
                     <td>${fmtDateIsoToIST(t.createdAt)}</td>
                     <td>${fmtDateIsoToIST(t.assignedAt)}</td>
                     <td>${fmtDateIsoToIST(t.closedAt)}</td>
+                    <td><span class="${resolutionClass}">${resolutionTime}</span></td>
                     <td title="${escapeHtml(t.remark || '')}">${escapeHtml(t.remark?.slice(0,30) || '-')}</td>
                     <td><button class="delete-btn" onclick="deleteTicket('${escapeHtml(t.id)}')">DELETE</button></td>
                 </tr>
@@ -300,14 +349,14 @@ function changePage(page) {
 }
 
 async function deleteTicket(id) {
-    if (!confirm(`⚠️ Are you sure you want to delete ticket ${id}?`)) return;
+    if (!confirm(` Are you sure you want to delete ticket ${id}?`)) return;
     try {
         const res = await authFetch(`${API_URL}/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Delete failed');
         loadTickets();
         loadStats();
     } catch (e) {
-        alert(`❌ Delete failed: ${e.message}`);
+        alert(` Delete failed: ${e.message}`);
     }
 }
 
@@ -320,7 +369,7 @@ async function fetchTicketDetails() {
     const msg = document.getElementById('closedMsg');
 
     if (!ticketId) {
-        msg.textContent = '⚠️ Please enter a ticket ID';
+        msg.textContent = ' Please enter a ticket ID';
         msg.className = 'msg-error';
         return;
     }
@@ -345,7 +394,7 @@ async function fetchTicketDetails() {
         details.classList.remove('hidden');
 
     } catch (e) {
-        msg.textContent = '❌ Ticket not found';
+        msg.textContent = ' Ticket not found';
         msg.className = 'msg-error';
         details.classList.add('hidden');
     }
@@ -365,7 +414,7 @@ async function markTicketClosed() {
         if (!res.ok) throw new Error('Close failed');
 
         const msg = document.getElementById('closedMsg');
-        msg.textContent = `✅ Ticket ${currentTicket.id} closed successfully & user notified!`;
+        msg.textContent = ` Ticket ${currentTicket.id} closed successfully & user notified!`;
         msg.className = 'msg-success';
 
         document.getElementById('closeRemark').value = '';
@@ -378,7 +427,7 @@ async function markTicketClosed() {
 
     } catch (e) {
         const msg = document.getElementById('closedMsg');
-        msg.textContent = `❌ Error: ${e.message}`;
+        msg.textContent = ` Error: ${e.message}`;
         msg.className = 'msg-error';
     }
 }
@@ -423,13 +472,13 @@ function setupAssignSection() {
         const msg = document.getElementById('assignMsg');
 
         if (!ticketId || !hrName) {
-            msg.textContent = '⚠️ Ticket ID & HR Name are required';
+            msg.textContent = ' Ticket ID & HR Name are required';
             msg.className = 'msg-error';
             return;
         }
 
         if (hrName !== 'Unassigned' && HR_MAPPING[hrName] !== hrEmail) {
-            msg.textContent = '⚠️ Email must match selected HR name';
+            msg.textContent = 'Email must match selected HR name';
             msg.className = 'msg-error';
             return;
         }
@@ -458,7 +507,7 @@ async function saveAssignment() {
 
         if (!res.ok) throw new Error('Assignment failed');
 
-        msg.textContent = '✅ Ticket assigned successfully & emails sent!';
+        msg.textContent = ' Ticket assigned successfully & emails sent!';
         msg.className = 'msg-success';
 
         document.getElementById('assignTicketId').value = '';
@@ -469,22 +518,38 @@ async function saveAssignment() {
         loadStats();
 
     } catch (e) {
-        msg.textContent = `❌ Error: ${e.message}`;
+        msg.textContent = ` Error: ${e.message}`;
         msg.className = 'msg-error';
     }
 }
 
+
+// ==========================
+// Chart instance registry
+// ==========================
+const chartRegistry = {};
+
+function destroyChart(id) {
+    if (chartRegistry[id]) {
+        chartRegistry[id].destroy();
+        delete chartRegistry[id];
+    }
+}
+
+// ==========================
 // Stats & Analytics
+// ==========================
 async function loadStats() {
     try {
-        const res = await authFetch(`${API_ADMIN}/stats`); 
-        if (res.ok) { 
-            const data = await res.json(); 
-            updateStats(data); 
-            return; 
+        const res = await authFetch(`${API_ADMIN}/stats`);
+        if (res.ok) {
+            const data = await res.json();
+            const res2 = await authFetch(API_URL);
+            const tickets = res2.ok ? await res2.json() : [];
+            updateStats(data, tickets);
+            return;
         }
     } catch { }
-    
     buildStatsFallback();
 }
 
@@ -492,88 +557,304 @@ async function buildStatsFallback() {
     try {
         const res = await authFetch(API_URL);
         if (!res.ok) return;
-        
         const tickets = await res.json();
-        const stats = {
-            total: tickets.length,
-            bystatus: {},
-            byhr: {}
-        };
-        
+        const stats = { total: tickets.length, bystatus: {}, byhr: {} };
         tickets.forEach(t => {
             const status = t.status || 'Unknown';
             const hr = t.assigned || 'Unassigned';
-            
             stats.bystatus[status] = (stats.bystatus[status] || 0) + 1;
-            
             if (!stats.byhr[hr]) stats.byhr[hr] = { Open: 0, Closed: 0 };
             stats.byhr[hr][status] = (stats.byhr[hr][status] || 0) + 1;
         });
-        
-        updateStats(stats);
+        updateStats(stats, tickets);
     } catch (e) {
         console.error('Failed to build stats:', e);
     }
 }
 
-function updateStats(data) {
-    document.getElementById('totalTickets').textContent = data.total || 0;
-    document.getElementById('openTickets').textContent = data.bystatus?.Open || 0;
-    document.getElementById('closedTickets').textContent = data.bystatus?.Closed || 0;
+function updateStats(data, tickets = []) {
+    const total = data.total || 0;
+    const open  = data.bystatus?.Open || 0;
+    const closed = data.bystatus?.Closed || 0;
+
+    document.getElementById('totalTickets').textContent = total;
+    document.getElementById('openTickets').textContent  = open;
+    document.getElementById('closedTickets').textContent = closed;
+
+    // Avg resolution time KPI
+    const resolvedTickets = tickets.filter(t => t.assignedAt && t.closedAt);
+    let avgMins = 0;
+    if (resolvedTickets.length > 0) {
+        const totalMins = resolvedTickets.reduce((sum, t) => {
+            const start = parseDate(t.assignedAt);
+            const end   = parseDate(t.closedAt);
+            if (!start || !end || isNaN(start) || isNaN(end)) return sum;
+            return sum + Math.max(0, Math.floor((end - start) / 60000));
+        }, 0);
+        avgMins = Math.round(totalMins / resolvedTickets.length);
+    }
+    const avgEl = document.getElementById('avgResolutionTime');
+    if (avgEl) {
+        if (avgMins === 0) {
+            avgEl.textContent = '-';
+        } else {
+            const d = Math.floor(avgMins / 1440);
+            const h = Math.floor((avgMins % 1440) / 60);
+            const m = avgMins % 60;
+            avgEl.textContent = d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+        }
+    }
+
+    // Resolution rate KPI
+    const rateEl = document.getElementById('resolutionRate');
+    if (rateEl) rateEl.textContent = total > 0 ? `${Math.round((closed / total) * 100)}%` : '0%';
+
+    // Draw all 6 charts
     drawHRChart(data.byhr || {});
+    drawStatusDonut(open, closed);
+    drawMonthlyVolumeChart(tickets);
+    drawResolutionTimeChart(tickets);
+    drawCategoryChart(tickets);
+    drawHRResolutionAvgChart(tickets);
 }
 
+// ---- Chart 1: HR Open vs Closed (grouped bar) ----
 function drawHRChart(byhr) {
-    const canvas = document.getElementById('hrChart'); 
+    const canvas = document.getElementById('hrChart');
     if (!canvas || !byhr || typeof Chart === 'undefined') return;
-    
-    const ctx = canvas.getContext('2d'); 
+    destroyChart('hrChart');
     const labels = Object.keys(byhr);
-    const openData = labels.map(l => byhr[l].Open || 0); 
-    const closedData = labels.map(l => byhr[l].Closed || 0);
-    
-    if (hrChart) hrChart.destroy();
-    
-    hrChart = new Chart(ctx, {
-        type: 'bar', 
-        data: { 
-            labels, 
+    chartRegistry['hrChart'] = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels,
             datasets: [
-                { 
-                    label: 'Open', 
-                    data: openData, 
-                    backgroundColor: '#ef4444', 
-                    borderRadius: 8, 
-                    borderSkipped: false 
-                }, 
-                { 
-                    label: 'Closed', 
-                    data: closedData, 
-                    backgroundColor: '#10b981', 
-                    borderRadius: 8, 
-                    borderSkipped: false 
-                }
-            ] 
+                { label: 'Open',   data: labels.map(l => byhr[l].Open   || 0), backgroundColor: 'rgba(239,68,68,0.85)',  borderRadius: 8, borderSkipped: false },
+                { label: 'Closed', data: labels.map(l => byhr[l].Closed || 0), backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 8, borderSkipped: false }
+            ]
         },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { 
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
                 legend: { position: 'top' },
-                title: {
-                    display: true,
-                    text: 'Tickets by HR Representative'
-                }
-            }, 
-            scales: { 
-                y: { beginAtZero: true } 
-            } 
+                title:  { display: true, text: 'Tickets by HR — Open vs Closed', font: { size: 15, weight: 'bold' } }
+            },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+
+// ---- Chart 2: Status Doughnut ----
+function drawStatusDonut(open, closed) {
+    const canvas = document.getElementById('statusDonut');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('statusDonut');
+    chartRegistry['statusDonut'] = new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Open', 'Closed'],
+            datasets: [{
+                data: [open, closed],
+                backgroundColor: ['rgba(239,68,68,0.85)', 'rgba(16,185,129,0.85)'],
+                borderWidth: 3, borderColor: '#fff', hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+                legend: { position: 'bottom' },
+                title:  { display: true, text: 'Ticket Status Distribution', font: { size: 15, weight: 'bold' } }
+            }
+        }
+    });
+}
+
+// ---- Chart 3: Monthly Ticket Volume (grouped bar) ----
+function drawMonthlyVolumeChart(tickets) {
+    const canvas = document.getElementById('monthlyVolumeChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('monthlyVolumeChart');
+
+    const monthMap = {};
+    tickets.forEach(t => {
+        if (!t.createdAt) return;
+        const d = parseDate(t.createdAt);
+        if (!d || isNaN(d)) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthMap[key]) monthMap[key] = { Open: 0, Closed: 0 };
+        const s = t.status || 'Open';
+        monthMap[key][s] = (monthMap[key][s] || 0) + 1;
+    });
+
+    const sortedKeys = Object.keys(monthMap).sort();
+    const labels = sortedKeys.map(k => {
+        const [y, m] = k.split('-');
+        return new Date(+y, +m - 1).toLocaleString('en-IN', { month: 'short', year: '2-digit' });
+    });
+
+    chartRegistry['monthlyVolumeChart'] = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Open',   data: sortedKeys.map(k => monthMap[k].Open   || 0), backgroundColor: 'rgba(239,68,68,0.75)',  borderRadius: 6, borderSkipped: false },
+                { label: 'Closed', data: sortedKeys.map(k => monthMap[k].Closed || 0), backgroundColor: 'rgba(16,185,129,0.75)', borderRadius: 6, borderSkipped: false }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' },
+                title:  { display: true, text: 'Monthly Ticket Volume', font: { size: 15, weight: 'bold' } }
+            },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+
+// ---- Chart 4: Avg Resolution Time per Month (line) ----
+function drawResolutionTimeChart(tickets) {
+    const canvas = document.getElementById('resolutionTimeChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('resolutionTimeChart');
+
+    const monthMap = {};
+    tickets.forEach(t => {
+        if (!t.assignedAt || !t.closedAt) return;
+        const start = parseDate(t.assignedAt);
+        const end   = parseDate(t.closedAt);
+        if (!start || !end || isNaN(start) || isNaN(end)) return;
+        const diffMins = Math.floor((end - start) / 60000);
+        if (diffMins < 0) return;
+        const key = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthMap[key]) monthMap[key] = { total: 0, count: 0 };
+        monthMap[key].total += diffMins;
+        monthMap[key].count++;
+    });
+
+    const sortedKeys = Object.keys(monthMap).sort();
+    const labels = sortedKeys.map(k => {
+        const [y, m] = k.split('-');
+        return new Date(+y, +m - 1).toLocaleString('en-IN', { month: 'short', year: '2-digit' });
+    });
+    const avgHours = sortedKeys.map(k => +(monthMap[k].total / monthMap[k].count / 60).toFixed(2));
+
+    chartRegistry['resolutionTimeChart'] = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Avg Resolution Time (hrs)',
+                data: avgHours,
+                borderColor: '#7c3aed',
+                backgroundColor: 'rgba(124,58,237,0.12)',
+                borderWidth: 3,
+                pointBackgroundColor: '#7c3aed',
+                pointRadius: 6, pointHoverRadius: 9,
+                fill: true, tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' },
+                title:  { display: true, text: 'Avg Resolution Time per Month (hours)', font: { size: 15, weight: 'bold' } }
+            },
+            scales: { y: { beginAtZero: true, title: { display: true, text: 'Hours' } } }
+        }
+    });
+}
+
+// ---- Chart 5: Tickets by Category (horizontal bar) ----
+function drawCategoryChart(tickets) {
+    const canvas = document.getElementById('categoryChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('categoryChart');
+
+    const catMap = {};
+    tickets.forEach(t => {
+        const cat = t.category || 'Unknown';
+        catMap[cat] = (catMap[cat] || 0) + 1;
+    });
+
+    const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+    const palette = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#ec4899','#14b8a6','#f97316','#8b5cf6','#84cc16'];
+
+    chartRegistry['categoryChart'] = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: sorted.map(([k]) => k),
+            datasets: [{
+                label: 'Tickets',
+                data: sorted.map(([, v]) => v),
+                backgroundColor: sorted.map((_, i) => palette[i % palette.length]),
+                borderRadius: 8, borderSkipped: false
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title:  { display: true, text: 'Tickets by Category', font: { size: 15, weight: 'bold' } }
+            },
+            scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+
+// ---- Chart 6: Avg Resolution Time per HR (horizontal bar) ----
+function drawHRResolutionAvgChart(tickets) {
+    const canvas = document.getElementById('hrResolutionChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('hrResolutionChart');
+
+    const hrMap = {};
+    tickets.forEach(t => {
+        if (!t.assignedAt || !t.closedAt || !t.assigned) return;
+        const start = parseDate(t.assignedAt);
+        const end   = parseDate(t.closedAt);
+        if (!start || !end || isNaN(start) || isNaN(end)) return;
+        const diffMins = Math.floor((end - start) / 60000);
+        if (diffMins < 0) return;
+        const hr = t.assigned;
+        if (!hrMap[hr]) hrMap[hr] = { total: 0, count: 0 };
+        hrMap[hr].total  += diffMins;
+        hrMap[hr].count++;
+    });
+
+    const entries = Object.entries(hrMap)
+        .map(([name, v]) => ({ name, avg: +(v.total / v.count / 60).toFixed(2) }))
+        .sort((a, b) => a.avg - b.avg);
+
+    chartRegistry['hrResolutionChart'] = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: entries.map(e => e.name),
+            datasets: [{
+                label: 'Avg Resolution Time (hrs)',
+                data: entries.map(e => e.avg),
+                backgroundColor: 'rgba(102,126,234,0.82)',
+                borderRadius: 8, borderSkipped: false
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title:  { display: true, text: 'Avg Resolution Time per HR (hours)', font: { size: 15, weight: 'bold' } }
+            },
+            scales: { x: { beginAtZero: true, title: { display: true, text: 'Hours' } } }
         }
     });
 }
 
 
-// // Confirmation Popup
+// ==========================
+// Confirmation Popup
+// ==========================
 function showConfirm(title, message, action, ticketId = null) {
     pendingAction = action; 
     pendingTicketId = ticketId;
@@ -603,7 +884,6 @@ function handleConfirm(confirmed) {
     hideConfirm();
 }
 
-
 // ==========================
 // Logout Popup
 // ==========================
@@ -626,35 +906,106 @@ function setupLogoutPopup() {
 // ==========================
 // Warn user before leaving page (refresh / close tab / back)
 // ==========================
-
-// Flag to track if user confirmed leaving
 let allowExit = false;
 
-// Custom function to ask before leaving
 function confirmExit() {
     return confirm("Do you really want to exit the application?");
 }
 
-// Back button prevention
 history.pushState(null, null, location.href);
 window.addEventListener('popstate', function (event) {
     if (!allowExit) {
         const leave = confirmExit();
         if (!leave) {
-            history.pushState(null, null, location.href); // stay on page
+            history.pushState(null, null, location.href);
         } else {
-            allowExit = true; // user wants to leave
-            history.back(); // allow back
+            allowExit = true;
+            history.back();
         }
     }
 });
 
-// Tab close / refresh
 window.addEventListener("beforeunload", function (e) {
     if (!allowExit) {
-        // Most browsers will ignore custom messages, show default warning
         e.preventDefault();
         e.returnValue = '';
-        return ''; // Some old browsers may use this
+        return '';
     }
 });
+
+// ==========================
+// Download Excel (SheetJS)
+// ==========================
+function downloadExcel() {
+    if (!filteredTickets || filteredTickets.length === 0) {
+        alert(' No ticket data to export. Please load tickets first.');
+        return;
+    }
+
+    // Build rows with all columns including Resolution Time
+    const rows = filteredTickets.map(t => ({
+        'Ticket ID':        t.id || '',
+        'Name':             t.name || '',
+        'Email':            t.email || '',
+        'Phone':            t.phone || '',
+        'Emp Code':         t.empCode || '',
+        'Category':         t.category || '',
+        'Description':      t.issue || '',
+        'Status':           t.status || '',
+        'Assigned To':      t.assigned || 'Unassigned',
+        'Created Time':     fmtDateIsoToIST(t.createdAt),
+        'Assigned Time':    fmtDateIsoToIST(t.assignedAt),
+        'Closed Time':      fmtDateIsoToIST(t.closedAt),
+        'Resolution Time':  calcResolutionTime(t.assignedAt, t.closedAt),
+        'Remark':           t.remark || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Column widths
+    ws['!cols'] = [
+        { wch: 16 }, // Ticket ID
+        { wch: 20 }, // Name
+        { wch: 28 }, // Email
+        { wch: 14 }, // Phone
+        { wch: 12 }, // Emp Code
+        { wch: 18 }, // Category
+        { wch: 40 }, // Description
+        { wch: 10 }, // Status
+        { wch: 22 }, // Assigned To
+        { wch: 22 }, // Created Time
+        { wch: 22 }, // Assigned Time
+        { wch: 22 }, // Closed Time
+        { wch: 16 }, // Resolution Time
+        { wch: 30 }, // Remark
+    ];
+
+    // Style header row (bold + background) — requires xlsx-style or manual approach
+    const headerRange = XLSX.utils.decode_range(ws['!ref']);
+    for (let C = headerRange.s.c; C <= headerRange.e.c; C++) {
+        const cellAddr = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!ws[cellAddr]) continue;
+        ws[cellAddr].s = {
+            font:      { bold: true, color: { rgb: 'FFFFFF' } },
+            fill:      { fgColor: { rgb: '667EEA' } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+        };
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'HR Tickets');
+
+    // Build filename with date range if filters applied
+    const from = document.getElementById('fromDate')?.value;
+    const to   = document.getElementById('toDate')?.value;
+    const status = document.getElementById('statusFilter')?.value;
+    const today = new Date().toISOString().slice(0, 10);
+
+    let filename = `JHS_HR_Tickets_${today}`;
+    if (from) filename += `_from${from}`;
+    if (to)   filename += `_to${to}`;
+    if (status && status !== 'All status') filename += `_${status}`;
+    filename += '.xlsx';
+
+    XLSX.writeFile(wb, filename);
+}

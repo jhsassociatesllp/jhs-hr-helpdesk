@@ -1,0 +1,306 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JHS IT Helpdesk - Admin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="/static/it-admin.css">
+</head>
+<body>
+    <div class="sidebar">
+        <h3>Admin Panel</h3>
+        <button id="btnAnalysis"> Analysis</button>
+        <button id="btnTickets"> Tickets</button>
+        <button id="btnClose">Close</button>
+        <button id="btnAssign"> Assign</button>
+        <button id="btnLogout"> Logout</button>
+    </div>
+
+    <main class="content">
+       
+        <section id="analysis" class="section hidden">
+            <h2>Dashboard Analytics</h2>
+
+            <!-- Stats Cards -->
+            <div class="stats">
+                <div class="card">
+                    <h3 id="totalTickets">-</h3>
+                    <p>Total Tickets</p>
+                </div>
+                <div class="card">
+                    <h3 id="openTickets">-</h3>
+                    <p>Open Tickets</p>
+                </div>
+                <div class="card">
+                    <h3 id="closedTickets">-</h3>
+                    <p>Closed Tickets</p>
+                </div>
+                <div class="card">
+                    <h3 id="avgTatStat">-</h3>
+                    <p>Avg. TAT (hrs)</p>
+                </div>
+            </div>
+
+            <!-- Download Button -->
+            <div class="download-bar">
+                <button id="btnDownloadExcel" class="btn-download-excel">
+                    ⬇ Download Excel Report
+                </button>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3 class="chart-title">Engineer Performance (Open vs Closed)</h3>
+                    <div class="chart-wrap">
+                        <canvas id="hrChart" aria-label="IT Engineer Open vs Closed"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">Ticket Status Distribution</h3>
+                    <div class="chart-wrap chart-wrap-sm">
+                        <canvas id="statusPieChart" aria-label="Status Pie Chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 2 -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3 class="chart-title">Issues Breakdown</h3>
+                    <div class="chart-wrap">
+                        <canvas id="issueChart" aria-label="Issues Bar Chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">Tickets Trend (Last 30 Days)</h3>
+                    <div class="chart-wrap">
+                        <canvas id="trendChart" aria-label="Daily Ticket Trend"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 3 -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3 class="chart-title">Tickets by Reporting Partner</h3>
+                    <div class="chart-wrap">
+                        <canvas id="partnerChart" aria-label="Partner Doughnut Chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">Avg. TAT per Engineer (hours)</h3>
+                    <div class="chart-wrap">
+                        <canvas id="tatChart" aria-label="TAT per Engineer"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tickets" class="section">
+            <h2>All Tickets</h2>
+            <div class="table-controls">
+                <div class="search-row">
+                    <input type="text" id="searchInput" placeholder="Search ticket id, name, email, issue...">
+                </div>
+                <div class="filters-row">
+                    <label>From <input type="date" id="fromDate"></label>
+                    <label>To <input type="date" id="toDate"></label>
+                    <label>
+                        <select id="statusFilter">
+                            <option value="All status">All status</option>
+                            <option value="Open">Open</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </label>
+                    <button id="btnRefresh" class="btn small">Refresh</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table id="ticketTable">
+                    <thead>
+                        <tr>
+                            <th>Ticket</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Contact</th>
+                            <th>IT Asset Code</th>
+                            <th>Issues</th>
+                            <th>Description</th>
+                            <th>Reporting Partner</th>
+                            <th>Status</th>
+                            <th>Open</th>
+                            <th>Assigned Engineer</th>
+                            <th>Engineer Email</th>
+                            <th>Assigned Time</th>
+                            <th>Closed</th>
+                            <th>Remark</th>
+                            <th>TAT</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticketBody"></tbody>
+                </table>
+            </div>
+            <div class="pagination-controls">
+                <button id="btnPrevPage" class="pagination-btn">Previous</button>
+                <span id="pageInfo" class="page-info">Page 1 of 1</span>
+                <button id="btnNextPage" class="pagination-btn">Next</button>
+            </div>
+        </section>
+
+
+        <section id="closed" class="section hidden">
+            <div class="close-ticket-container">
+                <h2>Close Ticket</h2>
+                
+                <div class="close-search-box">
+                    <input id="ticketIdInput" type="text" placeholder="Enter ticket ID (e.g., TICKJHSIT01)" class="close-search-input">
+                    <button id="btnFetch" class="btn-fetch-ticket">Fetch Details</button>
+                </div>
+
+                <div id="ticketDetailsCard" class="close-ticket-card hidden">
+                  
+                    <div class="close-ticket-header">
+                        <div class="close-ticket-title-section">
+                            <div class="close-ticket-id" id="ticketIdDisplay">-</div>
+                            <div class="close-ticket-meta" id="ticketSubject">-</div>
+                        </div>
+                        <span id="closingStatusBadge" class="close-status-badge close-status-open">Open</span>
+                    </div>
+
+              
+                    <div class="close-details-grid">
+                        <div class="close-detail-card">
+                            <div class="close-detail-label">Requester Name</div>
+                            <div class="close-detail-value" id="ticketName">-</div>
+                        </div>
+                        <div class="close-detail-card">
+                            <div class="close-detail-label">Email</div>
+                            <div class="close-detail-value" id="ticketEmail">-</div>
+                        </div>
+                        <div class="close-detail-card">
+                            <div class="close-detail-label">Phone</div>
+                            <div class="close-detail-value" id="ticketPhone">-</div>
+                        </div>
+                        <div class="close-detail-card">
+                            <div class="close-detail-label">IT Asset Code</div>
+                            <div class="close-detail-value" id="ticketAsset">-</div>
+                        </div>
+                        <div class="close-detail-card">
+                            <div class="close-detail-label">Issues</div>
+                            <div class="close-detail-value" id="ticketIssue">-</div>
+                        </div>
+                        <div class="close-detail-card">
+                            <div class="close-detail-label">Reporting Partner</div>
+                            <div class="close-detail-value" id="ticketPartner">-</div>
+                        </div>
+                        <div class="close-detail-card">
+                            <div class="close-detail-label">Created Date</div>
+                            <div class="close-detail-value" id="ticketCreatedAt">-</div>
+                        </div>
+                        <div class="close-detail-card">
+                            <div class="close-detail-label">Assigned To</div>
+                            <div class="close-detail-value" id="ticketAssigned">Unassigned</div>
+                        </div>
+                        <div class="close-detail-card">
+                            <div class="close-detail-label">Assigned Date</div>
+                            <div class="close-detail-value" id="ticketAssignedAt">-</div>
+                        </div>
+                        <div class="close-detail-card close-tat-highlight">
+                            <div class="close-detail-label">⏱ Time Taken (TAT)</div>
+                            <div class="close-detail-value close-tat-value" id="ticketTAT">-</div>
+                            <div class="close-tat-info" id="tatInfo"></div>
+                        </div>
+                    </div>
+
+                    
+                    <div class="close-description-section">
+                        <div class="close-detail-label">Issue Description</div>
+                        <div class="close-description-box" id="ticketDescription">-</div>
+                    </div>
+
+                   
+                    <div class="close-remark-section">
+                        <div class="close-detail-label">Resolution Remark / Notes <span class="close-required">*</span></div>
+                        <textarea 
+                            id="remarkText" 
+                            class="close-remark-textarea"
+                            placeholder="Add resolution details, steps taken, troubleshooting done, or any additional notes..."
+                            rows="6"
+                            maxlength="500"
+                        ></textarea>
+                        <div class="close-char-count">
+                            <span id="charCount">0</span>/500 characters
+                        </div>
+                    </div>
+
+                  
+                    <div class="close-action-section">
+                        <button id="btnMarkClosed" class="btn-close-final">
+                            ✓ Mark as Closed & Notify
+                        </button>
+                        <button id="btnCancelClose" class="btn-cancel-close">Cancel</button>
+                    </div>
+                </div>
+
+                <div id="closedMsg" class="close-message hidden"></div>
+            </div>
+        </section>
+
+
+        <section id="assign" class="section hidden">
+            <h2>Assign Tickets</h2>
+            <div class="assign-card">
+                <input id="assignTicketId" placeholder="Enter Ticket ID (e.g., TICKJHSHR01)" type="text">
+                <select id="assignHrName">
+                    <option value="">Select Name</option>
+                </select>
+                <select id="assignHrEmail">
+                    <option value="">Select Email</option>
+                </select>
+                <button id="assignSaveBtn" class="assign-btn">✓ ASSIGN & SEND EMAILS</button>
+            </div>
+            <div id="assignMsg"></div>
+        </section> 
+
+
+
+    </main>
+
+    <div id="confirmPopup" class="popup-overlay">
+        <div class="popup-box">
+            <h3 id="popupTitle">Confirm Action</h3>
+            <p id="popupText">Are you sure you want to proceed?</p>
+            <div class="popup-actions">
+                <button id="popupNo" class="popup-btn no">No</button>
+                <button id="popupYes" class="popup-btn yes">Yes</button>
+            </div>
+        </div>
+    </div>
+
+<div id="logoutPopup" class="logout-popup">
+  <div class="logout-popup-content">
+    <div class="logout-popup-icon">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" 
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h3 class="logout-popup-title">Confirm Logout</h3>
+    <p class="logout-popup-text">Are you sure you want to logout?</p>
+    <div class="logout-popup-buttons">
+      <button id="logoutCancel" class="logout-btn logout-btn-cancel">Cancel</button>
+      <button id="logoutConfirm" class="logout-btn logout-btn-confirm">Logout</button>
+    </div>
+  </div>
+</div>
+
+    <script src="/static/it-admin.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,11 +7,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="/static/admin.css">
-  
-
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/hradmin.css">
 </head>
 <body>
     <div class="sidebar">
@@ -24,9 +23,12 @@
     </div>
 
     <main class="content">
-       
+
+        <!-- ===== ANALYSIS SECTION ===== -->
         <section id="analysis" class="section hidden">
-            <h2> Dashboard Analytics</h2>
+            <h2>📊 Dashboard Analytics</h2>
+
+            <!-- KPI Cards -->
             <div class="stats">
                 <div class="card">
                     <h3 id="totalTickets">-</h3>
@@ -40,17 +42,66 @@
                     <h3 id="closedTickets">-</h3>
                     <p>Closed Tickets</p>
                 </div>
+                <div class="card">
+                    <h3 id="resolutionRate">-</h3>
+                    <p>Resolution Rate</p>
+                </div>
+                <div class="card">
+                    <h3 id="avgResolutionTime">-</h3>
+                    <p> Avg Resolution Time</p>
+                </div>
             </div>
-            <div class="chart-wrap">
-                <canvas id="hrChart" aria-label="HR Open vs Closed chart"></canvas>
+
+            <!-- Row 1: HR Grouped Bar + Status Donut -->
+            <div class="chart-grid-2">
+                <div class="chart-card">
+                    <div class="chart-wrap">
+                        <canvas id="hrChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-wrap">
+                        <canvas id="statusDonut"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Monthly Volume (full width) -->
+            <div class="chart-card chart-full">
+                <div class="chart-wrap">
+                    <canvas id="monthlyVolumeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 3: Avg Resolution Time per Month (full width) -->
+            <div class="chart-card chart-full">
+                <div class="chart-wrap">
+                    <canvas id="resolutionTimeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 4: Category Breakdown + HR Avg Resolution -->
+            <div class="chart-grid-2">
+                <div class="chart-card">
+                    <div class="chart-wrap chart-wrap-tall">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-wrap chart-wrap-tall">
+                        <canvas id="hrResolutionChart"></canvas>
+                    </div>
+                </div>
             </div>
         </section>
 
+
+        <!-- ===== TICKETS SECTION ===== -->
         <section id="tickets" class="section">
             <h2> All Tickets</h2>
             <div class="table-controls">
                 <div class="search-row">
-                    <input type="text" id="searchInput" placeholder="🔍 Search ticket id, name, email, category...">
+                    <input type="text" id="searchInput" placeholder=" Search ticket id, name, email, category...">
                 </div>
                 <div class="filters-row">
                     <label>From: <input type="date" id="fromDate"></label>
@@ -61,6 +112,7 @@
                         <option value="Closed">Closed</option>
                     </select>
                     <button id="btnRefresh" class="btn small"> Refresh</button>
+                    <button id="btnDownloadExcel" class="btn small btn-excel"> Download Excel</button>
                 </div>
             </div>
             <div class="table-wrap">
@@ -79,6 +131,7 @@
                             <th>Created Time</th>
                             <th>Assigned Time</th>
                             <th>Closed Time</th>
+                            <th>Resolution Time</th>
                             <th>Remark</th>
                             <th>Action</th>
                         </tr>
@@ -89,11 +142,11 @@
             <div id="pagination" class="pagination"></div>
         </section>
 
- 
+        <!-- ===== CLOSE SECTION ===== -->
         <section id="closed" class="section hidden">
             <div class="close-container">
                 <h2> Close Ticket</h2>
-                
+
                 <div class="close-input-group">
                     <label for="ticketIdInput"> Ticket ID</label>
                     <input id="ticketIdInput" placeholder="Enter ticket ID (e.g., TICKJHSHR01)">
@@ -110,44 +163,42 @@
                     <p><strong>Assigned To:</strong> <span id="ticketAssigned"></span></p>
                     <p><strong>Assigned At:</strong> <span id="ticketAssignedAt"></span></p>
                     <p><strong>Closed:</strong> <span id="ticketClosedAt"></span></p>
-                    
+
                     <div class="remark-section">
                         <label for="closeRemark"><strong>Remark (Mandatory):</strong></label>
                         <textarea id="closeRemark" placeholder="Enter closing remark here..." rows="4" required></textarea>
                     </div>
-                    
+
                     <div class="close-actions">
                         <button id="btnMarkClosed" class="btn-close">Mark Closed & Notify</button>
                     </div>
                 </div>
-                
+
                 <p id="closedMsg" class="msg-success"></p>
             </div>
         </section>
 
-<!--        
+        <!-- ===== ASSIGN SECTION (commented out) ===== -->
+        <!--
         <section id="assign" class="section hidden">
             <h2> Assign Tickets</h2>
-
             <div class="assign-center-box">
                 <input id="assignTicketId" class="assign-input" placeholder="Enter Ticket ID (e.g., TICKJHSHR01)">
-
                 <select id="assignHrName" class="assign-input">
                     <option value="">Select HR Name</option>
                 </select>
-
                 <select id="assignHrEmail" class="assign-input">
                     <option value="">Select Email</option>
                 </select>
-
-                <button id="assignSaveBtn" class="assign-btn">✅ Assign & Send Emails</button>
-
+                <button id="assignSaveBtn" class="assign-btn"> Assign & Send Emails</button>
                 <p id="assignMsg" class="assign-msg"></p>
             </div>
-        </section> -->
+        </section>
+        -->
+
     </main>
 
-  
+    <!-- ===== CONFIRMATION POPUP ===== -->
     <div id="confirmPopup" class="popup-overlay">
         <div class="popup-box">
             <h3 id="popupTitle">Confirm Action</h3>
@@ -159,26 +210,17 @@
         </div>
     </div>
 
- 
-<div id="logoutPopup" class="hidden logout-popup-overlay">
-    <div class="logout-popup-content">
-        <p>Are you sure you want to logout?</p>
-        <div class="logout-popup-buttons">
-            <button id="logoutYes" class="btn-yes">Yes</button>
-            <button id="logoutNo" class="btn-no">No</button>
+    <!-- ===== LOGOUT POPUP ===== -->
+    <div id="logoutPopup" class="hidden logout-popup-overlay">
+        <div class="logout-popup-content">
+            <p>Are you sure you want to logout?</p>
+            <div class="logout-popup-buttons">
+                <button id="logoutYes" class="btn-yes">Yes</button>
+                <button id="logoutNo" class="btn-no">No</button>
+            </div>
         </div>
     </div>
-</div>
 
-
-    <script src="/static/admin.js"></script>
+    <script src="/static/hradmin.js"></script>
 </body>
-</html> 
-
-
-
-
-
-
-
-
+</html>

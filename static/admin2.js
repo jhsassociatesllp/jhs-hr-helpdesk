@@ -16,7 +16,7 @@ const HR_MAPPING = {
     // 'Krutika Shivshivkar': 'krutika.shivshivkar@jhsassociates.in', 
     // 'Fiza Kudalkar': 'fiza.kudalkar@jhsassociates.in'
     // 'Other': ''
-    'Janhavi Gamare': 'vasugadde1100@gmaul.com', 
+    'Janhavi Gamare': 'vasugadde1100@gmail.com', 
     'Darshan Shah': 'vasugadde0203@gmail.com', 
     'Krutika Shivshivkar': 'vasugadde1234@gmail.com', 
     'Fiza Kudalkar': 'vasugadde1100@gmail.com'

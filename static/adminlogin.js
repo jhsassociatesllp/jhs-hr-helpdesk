@@ -1,62 +1,85 @@
-// const API_ADMIN = 'http://localhost:8000/api/admin';
-const API_ADMIN = '/api/admin';
+
+
+
+
+// API endpoints for both HR and IT
+const API_ENDPOINTS = {
+    hr: '/api/admin',
+    it: '/api/admin'
+};
+
+// Redirect URLs after successful login
+const REDIRECT_URLS = {
+    hr: '/admin',
+    it: '/it-admin'
+};
 
 function showMessage(message, type = 'success') {
     const msgEl = document.getElementById('loginMessage');
     msgEl.innerHTML = message;
     msgEl.className = `message ${type}`;
     msgEl.classList.remove('hidden');
-}
-
-function authFetch(url, options = {}) {
-    const token = localStorage.getItem('adminToken');
-
-    if (!token) {
-        logoutAdmin();
-        return;
-    }
-
-    return fetch(url, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            ...(options.headers || {})
-        }
-    });
+    
+    setTimeout(() => {
+        msgEl.classList.add('hidden');
+    }, 5000);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('loginForm');
-    
     const empCodeInput = document.getElementById('empCode');
+    const helpdeskTypeSelect = document.getElementById('helpdeskType');
+    
+    // Auto-uppercase employee code
     empCodeInput.addEventListener('input', (e) => {
         e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
+    
+    // Change title text only (no emoji), keep SVG icon intact
+    helpdeskTypeSelect.addEventListener('change', (e) => {
+        const titleEl = document.getElementById('logoTitle');
+        if (e.target.value === 'hr') {
+            titleEl.textContent = 'JHS HR Admin';
+        } else if (e.target.value === 'it') {
+            titleEl.textContent = 'JHS IT Admin';
+        } else {
+            titleEl.textContent = 'JHS Admin Portal';
+        }
     });
     
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span class="btn-loading">⏳ Logging in...</span>';
+        const originalHTML = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="btn-loading">Logging in...</span>';
         submitBtn.disabled = true;
         
-        const formData = {
-            empCode: document.getElementById('empCode').value.trim().toUpperCase(),
-            password: document.getElementById('password').value
-        };
+        const helpdeskType = document.getElementById('helpdeskType').value;
+        const empCode = document.getElementById('empCode').value.trim().toUpperCase();
+        const password = document.getElementById('password').value;
         
-        if (!formData.empCode || !formData.password) {
-            showMessage('❌ Employee Code and Password required', 'error');
-            submitBtn.innerHTML = originalText;
+        if (!helpdeskType) {
+            showMessage('Please select a helpdesk type', 'error');
+            submitBtn.innerHTML = originalHTML;
             submitBtn.disabled = false;
             return;
         }
         
+        if (!empCode || !password) {
+            showMessage('Employee Code and Password required', 'error');
+            submitBtn.innerHTML = originalHTML;
+            submitBtn.disabled = false;
+            return;
+        }
+        
+        const formData = { empCode, password };
+        
         try {
-            console.log("sending login request")
-            const response = await fetch(`${API_ADMIN}/login`, {
+            console.log(`Attempting ${helpdeskType.toUpperCase()} login for:`, empCode);
+            
+            const apiEndpoint = API_ENDPOINTS[helpdeskType];
+            const response = await fetch(`${apiEndpoint}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -68,23 +91,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(result.detail || 'Login failed');
             }
             
-            // localStorage.setItem('adminLoggedIn', 'true');
-            // localStorage.setItem('adminEmpCode', formData.empCode);
-            // window.location.href = 'admin.html';
-
-            localStorage.setItem('adminToken', result.access_token);
-            localStorage.setItem('adminName', result.name);
-            window.location.href = '/admin';
-
+            if (helpdeskType === 'hr') {
+                localStorage.setItem('adminToken', result.access_token || result.token);
+                localStorage.setItem('adminName', result.name);
+                localStorage.setItem('adminEmpCode', empCode);
+                localStorage.setItem('helpdeskType', 'hr');
+            } else if (helpdeskType === 'it') {
+                localStorage.setItem('adminLoggedIn', 'true');
+                localStorage.setItem('adminEmpCode', result.empCode || empCode);
+                localStorage.setItem('jwtToken', result.token || result.access_token);
+                localStorage.setItem('helpdeskType', 'it');
+            }
+            
+            showMessage('Login successful! Redirecting...', 'success');
+            
+            setTimeout(() => {
+                window.location.href = REDIRECT_URLS[helpdeskType];
+            }, 500);
             
         } catch (error) {
             console.error('Login error:', error);
-            showMessage(`❌ ${error.message}`, 'error');
+            showMessage(error.message, 'error');
         } finally {
-            submitBtn.innerHTML = originalText;
+            submitBtn.innerHTML = originalHTML;
             submitBtn.disabled = false;
         }
     });
 });
-
-
