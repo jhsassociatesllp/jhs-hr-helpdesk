@@ -196,6 +196,8 @@ jobs:
                 -e MONGO_CONNECTION_STRING='${{ secrets.MONGO_CONNECTION_STRING }}' \
                 -e SMTP_USER='${{ secrets.SMTP_USER }}' \
                 -e SMTP_PASS='${{ secrets.SMTP_PASS }}' \
+                -e SMTP_SERVER='${{ secrets.SMTP_SERVER }}' \
+                -e SMTP_PORT='${{ secrets.SMTP_PORT }}' \
                 -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
                 -e SENDER_EMAIL='${{ secrets.SENDER_EMAIL }}' \
                 -e SENDER_NAME='${{ secrets.SENDER_NAME }}' \

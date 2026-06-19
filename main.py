@@ -5869,7 +5869,6 @@ hr_tickets = hr_db["Tickets"]
 hr_admins = hr_db["Admins"]
 hr_sequences = hr_db["sequences"]   # NEW
 
-
 # IT Database
 it_db = client["IT_Helpdesk"]
 it_tickets = it_db["Tickets"]
