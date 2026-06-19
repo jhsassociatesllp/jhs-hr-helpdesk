@@ -1,7 +1,7 @@
 
 
 
-const API_URL = "http://localhost:8000/api/it/tickets";
+const API_URL = "/api/it/tickets";
 // const API_URL = "http://localhost:8000/api/tickets";
 
 function showFormMessage(text, type = "success") {
