@@ -32,3 +32,4 @@ jobs:
 
           echo "📤 Pushing: $IMAGE_NAME:$TAG"
           docker push $IMAGE_NAME:$TAG
+          
