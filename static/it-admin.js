@@ -4,9 +4,9 @@ const API_URL = '/api/it/tickets';
 const API_ADMIN = '/api/it';
 
 const ITENGINEERS = {
-    'Irfan IT': 'mohammad.siddiqui@jhsassociates.in',
-    'Shahnawaz IT': 'mohammad.siddiqui@jhsassociates.in',
-    'Pankaj IT': 'mohammad.siddiqui@jhsassociates.in',
+    'Irfan Khan': 'mohammad.siddiqui@jhsassociates.in',
+    'Shahnawaz Siddiqui': 'mohammad.siddiqui@jhsassociates.in',
+    'Pankaj Gupta': 'mohammad.siddiqui@jhsassociates.in',
     'Other': ''
 };
 

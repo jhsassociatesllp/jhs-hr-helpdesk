@@ -6594,7 +6594,6 @@ async def update_it_ticket(ticket_id: str, body: ITTicketUpdate, background_task
                 <strong>Issues:</strong> {', '.join(ticket.get('issues', []))}<br>
                 <strong>Issue Description:</strong> {ticket.get('issueDescription', 'N/A')}<br>
                 <strong>Resolution Remark:</strong> {body.remark}</p>
-                <p><strong>Resolution Time:</strong> {tat_text}</p>
                 <p>If you face any further issues, please feel free to create a new ticket.</p>
                 <p>Regards,<br>JHS IT Helpdesk</p>
                 """
@@ -6613,7 +6612,6 @@ async def update_it_ticket(ticket_id: str, body: ITTicketUpdate, background_task
                     <p><strong>Employee:</strong> {ticket.get('name')}<br>
                     <strong>Issue Description:</strong> {ticket.get('issueDescription', 'N/A')}<br>
                     <strong>Resolution Remark:</strong> {body.remark}<br>
-                    <strong>Resolution Time:</strong> {tat_text}</p>
                     <p>Regards,<br>JHS IT Helpdesk</p>
                     """
                 )
