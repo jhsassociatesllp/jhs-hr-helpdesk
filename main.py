@@ -5872,7 +5872,7 @@ hr_sequences = hr_db["sequences"]   # NEW
 # IT Database
 it_db = client["IT_Helpdesk"]
 it_tickets = it_db["Tickets"]
-it_admins = it_db["Admins"]
+it_admins = it_db["admins"]
 it_sessions = it_db["Sessions"]
 it_sequences = it_db["Sequences"]
 
