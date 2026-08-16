@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>JHS Helpdesk</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <div class="container">
+    <h1>JHS Helpdesk</h1>
+    <p>Please select the department to raise your ticket</p>
+
+    <div class="card-wrapper">
+      <div class="card it" onclick="goTo('IT')">
+        
+        <h3>IT Helpdesk</h3>
+        <span>System, Laptop, Email, Network</span>
+      </div>
+
+      <div class="card hr" onclick="goTo('HR')">
+        <h3>HR Helpdesk</h3>
+        <span>Salary, Leave, Policies, HR Issues</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
