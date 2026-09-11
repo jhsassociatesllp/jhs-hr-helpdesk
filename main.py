@@ -5886,8 +5886,8 @@ HR_EMAILS = {
     "HRMS QUERY": {"name": "Janhavi Gamare", "email": "janhavi.gamare@jhsassociatesllp.in"},
     "ATTENDANCE": {"name": "Janhavi Gamare", "email": "janhavi.gamare@jhsassociatesllp.in"},
     "SALARY QUERY": {"name": "Janhavi Gamare", "email": "janhavi.gamare@jhsassociatesllp.in"},
-    "BUDDY REFERRAL": {"name": "Krutika Shivshivkar", "email": "krutika.shivshivkar@jhsassociates.in"},
-    "OTHER": {"name": "Krutika Shivshivkar", "email": "krutika.shivshivkar@jhsassociates.in"}
+    "BUDDY REFERRAL": {"name": "Juee Pawar", "email": "juee.pawar@jhsassociates.in"},
+    "OTHER": {"name": "Juee Pawar", "email": "juee.pawar@jhsassociates.in"}
 }
 
 # IT Email list
