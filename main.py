@@ -5891,7 +5891,7 @@ HR_EMAILS = {
 }
 
 # IT Email list
-IT_EMAILS = ["mohammad.siddiqui@jhsassociates.in"]
+IT_EMAILS = ["jhs.helpdesk@jhsassociatesllp.in"]
 
 # ==================== PYDANTIC MODELS ====================
 

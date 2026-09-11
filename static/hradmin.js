@@ -252,8 +252,8 @@ async function loadTickets() {
             const to = toDate ? new Date(toDate) : new Date();
             to.setHours(23, 59, 59, 999);
             tickets = tickets.filter(t => {
-                const created = new Date(t.createdAt);
-                return created >= from && created <= to;
+                const created = parseDate(t.createdAt);
+                return created && created >= from && created <= to;
             });
         }
 

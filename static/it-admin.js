@@ -829,9 +829,9 @@ const API_URL = '/api/it/tickets';
 const API_ADMIN = '/api/it';
 
 const ITENGINEERS = {
-    'Gauhar Akhtar': 'mohammad.siddiqui@jhsassociates.in',
-    'Shahnawaz Siddiqui': 'mohammad.siddiqui@jhsassociates.in',
-    'Pankaj Gupta': 'mohammad.siddiqui@jhsassociates.in',
+    'Gauhar Akhtar': 'jhs.helpdesk@jhsassociatesllp.in',
+    'Shahnawaz Siddiqui': 'jhs.helpdesk@jhsassociatesllp.in',
+    'Pankaj Gupta': 'jhs.helpdesk@jhsassociatesllp.in',
     'Other': ''
 };
 
@@ -921,6 +921,12 @@ function escapeHtml(text) {
     if (!text) return '';
     return String(text).replace(/[&<>"']/g, m =>
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+}
+
+function parseDate(d) {
+    if (!d) return null;
+    if (typeof d !== 'string') return new Date(d);
+    return new Date(d.endsWith('Z') ? d : d + 'Z');
 }
 
 function fmtDateIsoToIST(d) {
