@@ -641,7 +641,7 @@
 //     if (!canvas || typeof Chart === 'undefined') return;
 //     destroyChart(issueChart);
 //     const sorted = Object.entries(issueCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
-//     const colors = ['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#f97316','#14b8a6','#ec4899','#64748b'];
+//     const colors = ['#1e3a5f','#f59e0b','#10b981','#3b82f6','#ef4444','#2c5282','#f97316','#14b8a6','#ec4899','#64748b'];
 //     issueChart = new Chart(canvas.getContext('2d'), {
 //         type: 'bar',
 //         data: {
@@ -671,11 +671,11 @@
 //             datasets: [{
 //                 label: 'Tickets Raised',
 //                 data: Object.values(trendData),
-//                 borderColor: '#6366f1',
+//                 borderColor: '#1e3a5f',
 //                 backgroundColor: 'rgba(99,102,241,0.12)',
 //                 borderWidth: 2.5,
 //                 pointRadius: 4,
-//                 pointBackgroundColor: '#6366f1',
+//                 pointBackgroundColor: '#1e3a5f',
 //                 tension: 0.4,
 //                 fill: true
 //             }]
@@ -693,7 +693,7 @@
 //     if (!canvas || typeof Chart === 'undefined') return;
 //     destroyChart(partnerChart);
 //     const labels = Object.keys(partnerCounts);
-//     const colors = ['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#f97316','#14b8a6','#ec4899','#64748b'];
+//     const colors = ['#1e3a5f','#f59e0b','#10b981','#3b82f6','#ef4444','#2c5282','#f97316','#14b8a6','#ec4899','#64748b'];
 //     partnerChart = new Chart(canvas.getContext('2d'), {
 //         type: 'doughnut',
 //         data: {
@@ -980,6 +980,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnAnalysis')?.addEventListener('click', () => showSection('analysis'));
     document.getElementById('btnTickets')?.addEventListener('click', () => showSection('tickets'));
     document.getElementById('btnClose')?.addEventListener('click', () => showSection('closed'));
+    document.getElementById('btnManual')?.addEventListener('click', () => showSection('manual'));
+    setupManualSection();
     document.getElementById('btnAssign')?.addEventListener('click', () => showSection('assign'));
     document.getElementById('btnLogout')?.addEventListener('click', showLogoutPopup);
 
@@ -1028,6 +1030,7 @@ function showSection(id) {
     if (el) el.classList.remove('hidden');
     if (id === 'analysis') loadStats();
     if (id === 'tickets') loadTickets();
+    if (id === 'manual') manualPrepare();
 }
 
 // ---------- LOGOUT ----------
@@ -1078,6 +1081,7 @@ async function loadTickets() {
 
         filteredTickets = tickets;
         currentPage = 1;
+        manualGotoPage(tickets);
         renderTickets();
     } catch (e) {
         console.error(e);
@@ -1106,7 +1110,7 @@ function renderTickets() {
             ? fullDescription.slice(0, 80) + '...'
             : fullDescription;
 
-        return `<tr>
+        return `<tr class="${t.id === manualHighlightId ? 'row-new' : ''}">
             <td><strong>${escapeHtml(t.id)}</strong></td>
             <td>${escapeHtml(t.name)}</td>
             <td>${escapeHtml(t.email)}</td>
@@ -1127,6 +1131,7 @@ function renderTickets() {
         </tr>`;
     }).join('');
     updatePaginationControls();
+    manualFlashRow();
 }
 
 function updatePaginationControls() {
@@ -1137,6 +1142,175 @@ function updatePaginationControls() {
     if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`;
     if (prevBtn) prevBtn.disabled = currentPage <= 1;
     if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+}
+
+
+// ==========================
+// Manual Ticket Entry (admin adds a ticket for someone who did not raise it)
+// ==========================
+function manualEl(id) { return document.getElementById('me_' + id); }
+
+function manualLocalNow() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+}
+
+function manualToIso(value) {
+    if (!value) return null;
+    const d = new Date(value);
+    return isNaN(d) ? null : d.toISOString();
+}
+
+function manualShowMsg(text, type) {
+    const box = manualEl('msg');
+    if (!box) return;
+    box.textContent = text;
+    box.className = 'manual-msg ' + type;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function manualSyncStatus() {
+    const closed = manualEl('status').value === 'Closed';
+    manualEl('closedWrap').classList.toggle('hidden', !closed);
+    if (!closed) manualEl('closedAt').value = '';
+}
+
+function manualSyncAssignedOther() {
+    const other = manualEl('assigned').value === '__other__';
+    manualEl('assignedOther').classList.toggle('hidden', !other);
+    if (other) manualEl('assignedOther').focus();
+}
+
+function manualPrepare() {
+    const now = manualLocalNow();
+    manualEl('createdAt').max = now;
+    manualEl('closedAt').max = now;
+}
+
+function manualReset() {
+    manualEl('form').reset();
+    manualEl('assignedOther').classList.add('hidden');
+    manualSyncStatus();
+    const box = manualEl('msg');
+    if (box) { box.textContent = ''; box.className = 'manual-msg'; }
+    if (typeof manualAfterReset === 'function') manualAfterReset();
+}
+
+function manualAssignedValue() {
+    const sel = manualEl('assigned').value;
+    if (sel === '__other__') return manualEl('assignedOther').value.trim();
+    return sel;
+}
+
+function setupManualSection() {
+    const form = manualEl('form');
+    if (!form) return;
+    manualEl('status').addEventListener('change', manualSyncStatus);
+    manualEl('assigned').addEventListener('change', manualSyncAssignedOther);
+    manualEl('clear').addEventListener('click', manualReset);
+    form.addEventListener('submit', e => { e.preventDefault(); saveManualTicket(); });
+    manualSyncStatus();
+}
+
+function manualAfterReset() {
+    manualEl('issueOtherText').value = '';
+}
+
+
+// ---- show the freshly saved manual ticket in the Tickets section ----
+let manualHighlightId = null;
+
+function manualGotoPage(tickets) {
+    if (!manualHighlightId) return;
+    const idx = tickets.findIndex(t => t.id === manualHighlightId);
+    if (idx >= 0) currentPage = Math.floor(idx / itemsPerPage) + 1;
+}
+
+function manualFlashRow() {
+    const row = document.querySelector('#ticketTable tbody tr.row-new');
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const id = manualHighlightId;
+    setTimeout(() => {
+        row.classList.remove('row-new');
+        if (manualHighlightId === id) manualHighlightId = null;
+    }, 6000);
+}
+
+function manualToast(text) {
+    const t = document.createElement('div');
+    t.className = 'manual-toast';
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+function manualResetTicketFilters() {
+    ['searchInput', 'fromDate', 'toDate'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const st = document.getElementById('statusFilter'); if (st) st.value = 'All status';
+}
+
+function manualOpenTickets(ticketId, message) {
+    manualHighlightId = ticketId;
+    manualReset();
+    manualResetTicketFilters();
+    showSection('tickets');   // reloads the list; the new row is highlighted
+    loadStats();
+    manualToast(message);
+}
+
+async function saveManualTicket() {
+    const name = manualEl('name').value.trim();
+    const description = manualEl('issue').value.trim();
+    const status = manualEl('status').value;
+    const assigned = manualAssignedValue() || 'Unassigned';
+    const remark = manualEl('remark').value.trim();
+    const createdAt = manualToIso(manualEl('createdAt').value);
+    const closedAt = status === 'Closed' ? manualToIso(manualEl('closedAt').value) : null;
+
+    const issues = Array.from(document.querySelectorAll('#me_issues input[type="checkbox"]:checked'))
+        .filter(cb => cb.id !== 'me_issueOtherChk')
+        .map(cb => cb.value);
+    if (manualEl('issueOtherChk').checked) {
+        issues.push(manualEl('issueOtherText').value.trim() || 'Other');
+    }
+
+    if (!name) return manualShowMsg('Full name is required.', 'error');
+    if (!issues.length) return manualShowMsg('Select at least one IT issue.', 'error');
+    if (!description) return manualShowMsg('Issue description is required.', 'error');
+    if (manualEl('assigned').value === '__other__' && !manualEl('assignedOther').value.trim())
+        return manualShowMsg('Please type the name of the engineer handling this ticket.', 'error');
+    if (status === 'Closed') {
+        if (assigned === 'Unassigned') return manualShowMsg('Select who handled the ticket before marking it Closed.', 'error');
+        if (!remark) return manualShowMsg('Remark is required for a Closed ticket.', 'error');
+    }
+    if (createdAt && closedAt && new Date(closedAt) < new Date(createdAt))
+        return manualShowMsg('Closed On cannot be before Raised On.', 'error');
+
+    const btn = manualEl('save');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    try {
+        const res = await apiRequest('/api/it/admin/manual-ticket', {
+            method: 'POST',
+            body: JSON.stringify({
+                name, issues, issueDescription: description, status, assigned, remark,
+                email: manualEl('email').value.trim(),
+                phone: manualEl('phone').value.trim(),
+                empCode: manualEl('empCode').value.trim(),
+                assetCode: manualEl('assetCode').value.trim(),
+                reportingPartner: manualEl('partner').value,
+                createdAt, closedAt
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Could not save the ticket');
+        manualOpenTickets(data.ticketId, `Ticket ${data.ticketId} saved and added to Tickets`);
+    } catch (e) {
+        manualShowMsg(e.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Save Ticket';
+    }
 }
 
 async function deleteTicket(id) {
@@ -1406,8 +1580,19 @@ function buildAllCharts(tickets) {
         .filter(t => t.assignedAt && t.closedAt)
         .map(t => tatToHours(t.assignedAt, t.closedAt))
         .filter(v => v !== null);
-    const avgTat = tatValues.length ? (tatValues.reduce((a, b) => a + b, 0) / tatValues.length).toFixed(1) : '-';
+    let avgTat = '-';
+    if (tatValues.length) {
+        const avgMins = Math.round((tatValues.reduce((a, b) => a + b, 0) / tatValues.length) * 60);
+        const d = Math.floor(avgMins / 1440);
+        const h = Math.floor((avgMins % 1440) / 60);
+        const m = avgMins % 60;
+        avgTat = avgMins === 0 ? '-' : d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
     document.getElementById('avgTatStat').textContent = avgTat;
+
+    // Resolution rate = closed / total
+    const rateEl = document.getElementById('resolutionRate');
+    if (rateEl) rateEl.textContent = total > 0 ? `${Math.round((closed / total) * 100)}%` : '0%';
 
     // --- Chart 1: Engineer Open vs Closed (bar) ---
     const byIT = {};
@@ -1520,7 +1705,7 @@ function drawIssueChart(issueCounts) {
     if (!canvas || typeof Chart === 'undefined') return;
     destroyChart(issueChart);
     const sorted = Object.entries(issueCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    const colors = ['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#f97316','#14b8a6','#ec4899','#64748b'];
+    const colors = ['#1e3a5f','#f59e0b','#10b981','#3b82f6','#ef4444','#2c5282','#f97316','#14b8a6','#ec4899','#64748b'];
     issueChart = new Chart(canvas.getContext('2d'), {
         type: 'bar',
         data: {
@@ -1550,11 +1735,11 @@ function drawTrendChart(trendData) {
             datasets: [{
                 label: 'Tickets Raised',
                 data: Object.values(trendData),
-                borderColor: '#6366f1',
+                borderColor: '#1e3a5f',
                 backgroundColor: 'rgba(99,102,241,0.12)',
                 borderWidth: 2.5,
                 pointRadius: 4,
-                pointBackgroundColor: '#6366f1',
+                pointBackgroundColor: '#1e3a5f',
                 tension: 0.4,
                 fill: true
             }]
@@ -1572,7 +1757,7 @@ function drawPartnerChart(partnerCounts) {
     if (!canvas || typeof Chart === 'undefined') return;
     destroyChart(partnerChart);
     const labels = Object.keys(partnerCounts);
-    const colors = ['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#f97316','#14b8a6','#ec4899','#64748b'];
+    const colors = ['#1e3a5f','#f59e0b','#10b981','#3b82f6','#ef4444','#2c5282','#f97316','#14b8a6','#ec4899','#64748b'];
     partnerChart = new Chart(canvas.getContext('2d'), {
         type: 'doughnut',
         data: {
@@ -1614,8 +1799,8 @@ function drawTatChart(tatAvgByEng) {
 
 // ---------- EXCEL DOWNLOAD ----------
 function downloadExcel() {
-    const tickets = allTicketsCache;
-    if (!tickets || !tickets.length) { alert('No ticket data to export.'); return; }
+    // Export exactly what the filters (search / dates / status) show; empty result => headers-only sheet
+    const tickets = filteredTickets || [];
 
     const wb = XLSX.utils.book_new();
 
@@ -1638,7 +1823,10 @@ function downloadExcel() {
         'Remark': t.remark || '',
         'TAT': calculateTAT(t.assignedAt, t.closedAt)
     }));
-    const ws1 = XLSX.utils.json_to_sheet(rows);
+    const ws1 = XLSX.utils.json_to_sheet(rows, {
+        header: ['Ticket ID','Name','Email','Phone','IT Asset Code','Issues','Description','Reporting Partner',
+                 'Status','Created At','Assigned Engineer','Engineer Email','Assigned At','Closed At','Remark','TAT']
+    });
     ws1['!cols'] = [
         { wch: 18 }, { wch: 20 }, { wch: 28 }, { wch: 15 }, { wch: 18 },
         { wch: 30 }, { wch: 40 }, { wch: 22 }, { wch: 10 }, { wch: 22 },

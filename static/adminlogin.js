@@ -39,9 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
     helpdeskTypeSelect.addEventListener('change', (e) => {
         const titleEl = document.getElementById('logoTitle');
         if (e.target.value === 'hr') {
-            titleEl.textContent = 'JHS HR Admin';
+            titleEl.textContent = 'HR Admin';
         } else if (e.target.value === 'it') {
-            titleEl.textContent = 'JHS IT Admin';
+            titleEl.textContent = 'IT Admin';
         } else {
             titleEl.textContent = 'JHS Admin Portal';
         }

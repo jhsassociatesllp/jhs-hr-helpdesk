@@ -2,29 +2,42 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JHS Helpdesk</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="/static/style.css?v=brand14" />
 </head>
 <body>
 
   <div class="container">
-    <h1>JHS Helpdesk</h1>
+    <div class="brand">
+      <img class="brand-logo" src="/static/jhs-logo.webp" alt="JHS logo" />
+      <div class="brand-name"><strong>Helpdesk Portal</strong></div>
+    </div>
+    <h1>How can we help you?</h1>
     <p>Please select the department to raise your ticket</p>
 
     <div class="card-wrapper">
-      <div class="card it" onclick="goTo('IT')">
-        
+      <div class="card it" onclick="goTo('IT')" role="button" tabindex="0"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goTo('IT')}">
+        <div class="icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20M9 16v4M15 16v4"/></svg>
+        </div>
         <h3>IT Helpdesk</h3>
         <span>System, Laptop, Email, Network</span>
       </div>
 
-      <div class="card hr" onclick="goTo('HR')">
+      <div class="card hr" onclick="goTo('HR')" role="button" tabindex="0"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goTo('HR')}">
+        <div class="icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#d62049" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.7a3.5 3.5 0 0 1 0 6.6M18 14.4c2 .7 3.5 2.6 3.5 5.6"/></svg>
+        </div>
         <h3>HR Helpdesk</h3>
         <span>Salary, Leave, Policies, HR Issues</span>
       </div>
     </div>
   </div>
 
-  <script src="/static/script.js"></script>
+  <script src="/static/script.js?v=brand14"></script>
 </body>
 </html>

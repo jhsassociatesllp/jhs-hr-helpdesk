@@ -5820,9 +5820,11 @@ from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 import os
 import time
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import json
+import threading
+import urllib.request
+import urllib.parse
+import urllib.error
 import logging
 import hashlib
 from jose import JWTError, jwt
@@ -5851,14 +5853,16 @@ SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-change-this")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-# ---- Brevo SMTP Configuration ----
-# Brevo SMTP relay: smtp-relay.brevo.com on port 587 (STARTTLS)
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp-relay.brevo.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER")          # Brevo account login email
-SMTP_PASS = os.getenv("SMTP_PASS")          # Brevo SMTP key (generated in SMTP & API > SMTP tab)
-SENDER_EMAIL = os.getenv("SENDER_EMAIL")    # Your single verified Brevo sender email
-SENDER_NAME = os.getenv("SENDER_NAME", "JHS Helpdesk")
+# ---- Microsoft 365 (Microsoft Graph) email configuration ----
+# Mail is sent with an Entra ID (Azure AD) app registration using the client-credentials flow.
+# The app needs the *Application* permission Mail.Send (with admin consent).
+TENANT_ID = (os.getenv("JHS_HELPDESK_MS_TENANT_ID") or "").strip()
+CLIENT_ID = (os.getenv("JHS_HELPDESK_MS_CLIENT_ID") or "").strip()
+CLIENT_SECRET = (os.getenv("JHS_HELPDESK_MS_CLIENT_SECRET") or "").strip()
+# Microsoft 365 mailbox the mails are sent from (must exist in the tenant)
+SENDER_EMAIL = (os.getenv("JHS_HELPDESK_MS_SENDER_EMAIL") or "jhs.helpdesk@jhsassociatesllp.in").strip()
+# Display name shown as the sender (best effort; the mailbox display name in Microsoft 365 can override it)
+SENDER_NAME = (os.getenv("JHS_HELPDESK_MS_SENDER_NAME") or "JHS Helpdesk").strip()
 
 # Database connections
 client = MongoClient(os.getenv("MONGO_CONNECTION_STRING"))
@@ -5879,6 +5883,11 @@ it_sequences = it_db["Sequences"]
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Also keep email results in a UTF-8 file (the Windows console cannot print the emoji in these log lines)
+_email_log_handler = logging.FileHandler("email_debug.log", encoding="utf-8")
+_email_log_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+logger.addHandler(_email_log_handler)
 
 # HR Email Mapping
 HR_EMAILS = {
@@ -5965,98 +5974,133 @@ def get_current_admin(authorization: str = Header(None)):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
+_graph_token_cache = {"value": None, "expires_at": 0.0}
+_graph_token_lock = threading.Lock()
+
+
+def _graph_error_text(e: "urllib.error.HTTPError") -> str:
+    """Readable error text from a Graph / Entra ID HTTP error (never includes secrets)."""
+    try:
+        data = json.loads(e.read().decode("utf-8", "replace"))
+    except Exception:
+        return f"HTTP {e.code}"
+    err = data.get("error")
+    if isinstance(err, dict):  # Graph style
+        return f"HTTP {e.code} {err.get('code', '')}: {str(err.get('message', ''))[:300]}"
+    return f"HTTP {e.code} {err or ''}: {str(data.get('error_description', ''))[:300]}"  # Entra ID style
+
+
+def _get_graph_token(force_refresh: bool = False) -> str:
+    """App-only access token for Microsoft Graph (cached until shortly before it expires)."""
+    with _graph_token_lock:
+        if (not force_refresh and _graph_token_cache["value"]
+                and time.time() < _graph_token_cache["expires_at"] - 120):
+            return _graph_token_cache["value"]
+
+        data = urllib.parse.urlencode({
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "scope": "https://graph.microsoft.com/.default",
+            "grant_type": "client_credentials",
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://login.microsoftonline.com/{urllib.parse.quote(TENANT_ID)}/oauth2/v2.0/token",
+            data=data, method="POST",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        _graph_token_cache["value"] = payload["access_token"]
+        _graph_token_cache["expires_at"] = time.time() + int(payload.get("expires_in", 3600))
+        return _graph_token_cache["value"]
+
+
 def sendemail(recipients: List[str], subject: str, body: str) -> bool:
     """
-    Send email via Brevo SMTP relay.
+    Send an HTML email through Microsoft Graph (Microsoft 365) from SENDER_EMAIL.
 
-    IMPORTANT (Brevo free tier):
-    - The 'From' address MUST be your single verified sender email
-      (set SENDER_EMAIL in .env). Brevo will reject/bounce emails
-      sent from any other 'From' address.
-    - Recipients ('To') can be ANY email address - no restriction there.
-    - SMTP_USER/SMTP_PASS = your Brevo SMTP login + SMTP key
-      (NOT your Brevo account password - generate the key under
-      SMTP & API > SMTP tab in the Brevo dashboard).
+    Needs JHS_HELPDESK_MS_TENANT_ID, JHS_HELPDESK_MS_CLIENT_ID and JHS_HELPDESK_MS_CLIENT_SECRET in .env, and the app registration must have
+    the *Application* permission Mail.Send with admin consent. Optionally set JHS_HELPDESK_MS_SENDER_EMAIL
+    in .env to change the sending mailbox.
 
-    Returns True if the send call succeeded, False otherwise.
-    Logs detailed success/failure so you can trace which stage
-    (create / assign / close) failed.
+    Returns True if Microsoft accepted the message (HTTP 202), False otherwise.
+    Detailed success/failure is logged so you can trace which stage (create / assign / close) failed.
     """
-    # Small delay to be gentle with rate limits
-    time.sleep(1.5)
-
-    valid_recipients = [r for r in recipients if r and r.strip()]
+    valid_recipients = [r.strip() for r in recipients if r and r.strip()]
     if not valid_recipients:
         logger.warning(f"⚠️ EMAIL SKIPPED (no valid recipients) → subject='{subject}'")
         return False
 
-    if not SMTP_USER or not SMTP_PASS or not SENDER_EMAIL:
+    if not TENANT_ID or not CLIENT_ID or not CLIENT_SECRET or not SENDER_EMAIL:
         logger.error(
-            "❌ EMAIL CONFIG MISSING — check SMTP_USER, SMTP_PASS, "
-            "SENDER_EMAIL in your .env (Brevo SMTP credentials)"
+            "❌ EMAIL CONFIG MISSING — set JHS_HELPDESK_MS_TENANT_ID, JHS_HELPDESK_MS_CLIENT_ID and JHS_HELPDESK_MS_CLIENT_SECRET in your .env "
+            "(Microsoft Entra app registration)"
         )
         return False
 
     logger.info(f"🔄 EMAIL → {valid_recipients}, subject='{subject}'")
 
+    message = {
+        "message": {
+            "subject": subject,
+            "from": {"emailAddress": {"name": SENDER_NAME, "address": SENDER_EMAIL}},
+            "body": {"contentType": "HTML", "content": body},
+            "toRecipients": [{"emailAddress": {"address": r}} for r in valid_recipients],
+        },
+        "saveToSentItems": True,
+    }
+    url = f"https://graph.microsoft.com/v1.0/users/{urllib.parse.quote(SENDER_EMAIL)}/sendMail"
+
     try:
-        msg = MIMEMultipart()
-        msg['From'] = f"{SENDER_NAME} <{SENDER_EMAIL}>"
-        msg['To'] = ", ".join(valid_recipients)
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'html'))
-
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASS)
-
-        server.sendmail(SENDER_EMAIL, valid_recipients, msg.as_string())
-        server.quit()
-
-        logger.info(f"✅ EMAIL SENT → {valid_recipients} | subject='{subject}'")
-        return True
-
-    except smtplib.SMTPAuthenticationError as e:
-        logger.error(
-            f"❌ EMAIL AUTH FAILED — verify SMTP_USER/SMTP_PASS (Brevo SMTP key). "
-            f"Detail: {str(e)}"
-        )
+        for attempt in (1, 2):
+            token = _get_graph_token(force_refresh=(attempt == 2))
+            req = urllib.request.Request(
+                url, data=json.dumps(message).encode("utf-8"), method="POST",
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    if resp.status in (200, 202):
+                        logger.info(f"✅ EMAIL SENT → {valid_recipients} | subject='{subject}'")
+                        return True
+                    logger.error(f"❌ EMAIL FAILED → unexpected HTTP {resp.status}")
+                    return False
+            except urllib.error.HTTPError as e:
+                if e.code == 401 and attempt == 1:
+                    continue  # expired / revoked token: fetch a fresh one and retry once
+                detail = _graph_error_text(e)
+                hint = ""
+                if e.code == 403:
+                    hint = (" — the app needs the Application permission Mail.Send with admin consent"
+                            " (and no Application Access Policy blocking this mailbox)")
+                elif e.code == 404:
+                    hint = f" — mailbox '{SENDER_EMAIL}' not found / not licensed in this tenant"
+                logger.error(f"❌ EMAIL FAILED → {valid_recipients} | {detail}{hint}")
+                return False
         return False
-    except smtplib.SMTPRecipientsRefused as e:
-        logger.error(f"❌ EMAIL RECIPIENTS REFUSED → {valid_recipients} | Detail: {str(e)}")
-        return False
-    except smtplib.SMTPSenderRefused as e:
-        logger.error(
-            f"❌ EMAIL SENDER REFUSED — '{SENDER_EMAIL}' may not be a verified "
-            f"sender in Brevo (Senders & IP > Senders). Detail: {str(e)}"
-        )
-        return False
-    except smtplib.SMTPException as e:
-        logger.error(f"❌ SMTP ERROR → {str(e)}")
+
+    except urllib.error.HTTPError as e:
+        # token request failed (wrong tenant / client id / secret, expired secret ...)
+        logger.error(f"❌ EMAIL AUTH FAILED — check JHS_HELPDESK_MS_TENANT_ID / JHS_HELPDESK_MS_CLIENT_ID / JHS_HELPDESK_MS_CLIENT_SECRET. {_graph_error_text(e)}")
         return False
     except Exception as e:
-        logger.error(f"❌ EMAIL FAILED → {str(e)}")
+        logger.error(f"❌ EMAIL FAILED → {type(e).__name__}: {e}")
         return False
 
 # ==================== EMAIL TEST ROUTE ====================
 
 @app.post("/api/test-email")
-async def test_email(body: TestEmailRequest):
+async def test_email(body: TestEmailRequest, admin=Depends(get_current_admin)):
     """
-    Quick standalone test of Brevo SMTP connectivity.
-    Use this BEFORE testing ticket create/assign/close flows
-    to confirm SMTP_USER, SMTP_PASS, SENDER_EMAIL are correct
-    and Brevo is delivering.
-
-    POST { "to": "your_test_inbox@gmail.com" }
+    Admin-only test of the Microsoft 365 (Graph) email setup.
+    POST { "to": "your_test_inbox@example.com" } with the admin Bearer token.
     """
     success = sendemail(
         [body.to],
-        "JHS Helpdesk - Brevo SMTP Test",
+        "JHS Helpdesk - Email Test",
         f"""
-        <p>This is a test email sent via Brevo SMTP relay.</p>
-        <p>If you received this, your email configuration is working correctly
-        for ticket creation, assignment, and closure notifications.</p>
+        <p>This is a test email sent through Microsoft 365 (Microsoft Graph).</p>
+        <p>If you received this, email sending for ticket creation, assignment and closure is working.</p>
         <p>Sent at: {datetime.utcnow().isoformat()} UTC</p>
         """
     )
@@ -6064,8 +6108,7 @@ async def test_email(body: TestEmailRequest):
         return {"status": "sent", "message": "Check inbox/spam folder", "to": body.to}
     raise HTTPException(
         status_code=500,
-        detail="Email send failed - check server logs for the exact reason "
-               "(auth error, sender not verified, etc.)"
+        detail="Email send failed - see email_debug.log / server logs for the exact reason"
     )
 
 # ==================== AUTHENTICATION ROUTES ====================
@@ -6313,6 +6356,150 @@ async def update_hr_ticket(ticketid: str, body: HRTicketUpdate, background_tasks
         hr_tickets.update_one({"id": ticketid}, {"$set": update_data})
     
     return {"message": "Updated", "ticketId": ticketid}
+
+# ==================== ADMIN MANUAL ENTRY (tickets not raised by the employee) ====================
+
+def _clean(value: Optional[str], max_len: int = 200) -> str:
+    return (value or "").strip()[:max_len]
+
+
+def _parse_client_dt(value: Optional[str]) -> Optional[datetime]:
+    """ISO string sent by the browser (UTC) -> naive UTC datetime, same style as datetime.utcnow()."""
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    if dt.tzinfo is not None:
+        from datetime import timezone as _tz
+        dt = dt.astimezone(_tz.utc).replace(tzinfo=None)
+    return dt
+
+
+def _manual_timeline(status: str, created_raw: Optional[str], closed_raw: Optional[str], has_assignee: bool):
+    """Return (createdAt, assignedAt, closedAt) for a manually entered ticket, validating the dates."""
+    now = datetime.utcnow()
+    grace = timedelta(minutes=5)
+    created = _parse_client_dt(created_raw) or now
+    if created > now + grace:
+        raise HTTPException(status_code=400, detail="Raised date cannot be in the future")
+    assigned_at = created if has_assignee else None
+    closed_at = None
+    if status == "Closed":
+        closed_at = _parse_client_dt(closed_raw) or now
+        if closed_at > now + grace:
+            raise HTTPException(status_code=400, detail="Closed date cannot be in the future")
+        if closed_at < created:
+            raise HTTPException(status_code=400, detail="Closed date cannot be before the raised date")
+    return created, assigned_at, closed_at
+
+
+def _manual_status(value: Optional[str]) -> str:
+    status = (value or "Open").strip().lower()
+    if status not in ("open", "closed"):
+        raise HTTPException(status_code=400, detail="Status must be Open or Closed")
+    return "Closed" if status == "closed" else "Open"
+
+
+def _optional_email(value: Optional[str]) -> Optional[str]:
+    email = _clean(value, 150)
+    if not email:
+        return None
+    if "@" not in email or " " in email or email.startswith("@") or email.endswith("@"):
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    return email
+
+
+class HRManualTicket(BaseModel):
+    name: str
+    category: str
+    issue: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    empCode: Optional[str] = None
+    assigned: Optional[str] = "Unassigned"
+    status: Optional[str] = "Open"
+    remark: Optional[str] = None
+    createdAt: Optional[str] = None
+    closedAt: Optional[str] = None
+
+
+@app.post("/api/hr/admin/manual-ticket")
+async def create_hr_manual_ticket(body: HRManualTicket, admin=Depends(get_current_admin)):
+    """Admin enters an HR ticket on behalf of someone who did not raise it themselves.
+    Saved straight into the same collection (shows in tickets list, stats and Excel). No emails are sent."""
+    name = _clean(body.name, 100)
+    issue = _clean(body.issue, 2000)
+    category = _clean(body.category, 50).upper()
+    if not name or not issue:
+        raise HTTPException(status_code=400, detail="Name and issue description are required")
+    if category not in HR_EMAILS:
+        raise HTTPException(status_code=400, detail="Invalid category")
+
+    status = _manual_status(body.status)
+    assigned = _clean(body.assigned, 100) or "Unassigned"
+    has_assignee = assigned.lower() != "unassigned"
+    remark = _clean(body.remark, 500)
+    if status == "Closed":
+        if not has_assignee:
+            raise HTTPException(status_code=400, detail="Select who handled the ticket before marking it Closed")
+        if not remark:
+            raise HTTPException(status_code=400, detail="Remark is required for a Closed ticket")
+
+    created, assigned_at, closed_at = _manual_timeline(status, body.createdAt, body.closedAt, has_assignee)
+    email = _optional_email(body.email)
+
+    hr_email = None
+    for info in HR_EMAILS.values():
+        if info["name"].lower() == assigned.lower():
+            hr_email = info["email"]
+            assigned = info["name"]
+            break
+
+    sequence = hr_sequences.find_one_and_update(
+        {"_id": "hr_ticket_counter"},
+        {"$inc": {"seq": 1}},
+        upsert=True,
+        return_document=True
+    )
+    ticket_id = f"TICKJHSHR{str(sequence['seq']).zfill(2)}"
+
+    hr_tickets.insert_one({
+        "id": ticket_id, "name": name, "email": email or "",
+        "phone": _clean(body.phone, 30) or None, "empCode": _clean(body.empCode, 30) or None,
+        "category": category, "issue": issue,
+        "status": status, "assigned": assigned, "hrEmail": hr_email,
+        "assignedAt": assigned_at, "createdAt": created, "closedAt": closed_at,
+        "remark": remark,
+        "manualEntry": True, "enteredBy": admin.get("empCode") or admin.get("sub")
+    })
+    return {"message": "Ticket saved", "ticketId": ticket_id}
+
+
+class HRAssignedCorrection(BaseModel):
+    assigned: str
+
+
+@app.put("/api/hr/tickets/{ticketid}/assigned")
+async def correct_hr_ticket_assigned(ticketid: str, body: HRAssignedCorrection, admin=Depends(get_current_admin)):
+    """Correct the 'Assigned To' name only (e.g. ticket was resolved by another HR person).
+    Does NOT touch assignedAt / status / closedAt and does NOT send any email,
+    so resolution time stays accurate."""
+    name = (body.assigned or "").strip()
+    if not name:
+        raise HTTPException(400, "Assigned name cannot be empty")
+    if len(name) > 100:
+        raise HTTPException(400, "Assigned name is too long")
+
+    result = hr_tickets.update_one(
+        {"id": ticketid},
+        {"$set": {"assigned": name, "assignedEditedAt": datetime.utcnow()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(404, "Ticket not found")
+    return {"message": "Assigned To updated", "ticketId": ticketid, "assigned": name}
+
 
 @app.delete("/api/hr/tickets/{ticketid}")
 async def delete_hr_ticket(ticketid: str, admin=Depends(get_current_admin)):
@@ -6622,6 +6809,68 @@ async def update_it_ticket(ticket_id: str, body: ITTicketUpdate, background_task
         it_tickets.update_one({"id": ticket_id}, {"$set": update_data})
     
     return {"message": "Updated", "ticketId": ticket_id}
+
+class ITManualTicket(BaseModel):
+    name: str
+    issues: List[str]
+    issueDescription: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    empCode: Optional[str] = None
+    assetCode: Optional[str] = None
+    reportingPartner: Optional[str] = None
+    assigned: Optional[str] = "Unassigned"
+    status: Optional[str] = "Open"
+    remark: Optional[str] = None
+    createdAt: Optional[str] = None
+    closedAt: Optional[str] = None
+
+
+@app.post("/api/it/admin/manual-ticket")
+async def create_it_manual_ticket(body: ITManualTicket, admin=Depends(get_current_admin)):
+    """Admin enters an IT ticket on behalf of someone who did not raise it themselves.
+    Saved straight into the same collection (shows in tickets list, stats and Excel). No emails are sent."""
+    name = _clean(body.name, 100)
+    description = _clean(body.issueDescription, 2000)
+    issues = [_clean(i, 100) for i in (body.issues or []) if _clean(i, 100)]
+    if not name or not description:
+        raise HTTPException(status_code=400, detail="Name and issue description are required")
+    if not issues:
+        raise HTTPException(status_code=400, detail="Select at least one IT issue")
+
+    status = _manual_status(body.status)
+    assigned = _clean(body.assigned, 100) or "Unassigned"
+    has_assignee = assigned.lower() != "unassigned"
+    remark = _clean(body.remark, 500)
+    if status == "Closed":
+        if not has_assignee:
+            raise HTTPException(status_code=400, detail="Select who handled the ticket before marking it Closed")
+        if not remark:
+            raise HTTPException(status_code=400, detail="Remark is required for a Closed ticket")
+
+    created, assigned_at, closed_at = _manual_timeline(status, body.createdAt, body.closedAt, has_assignee)
+    email = _optional_email(body.email)
+
+    sequence = it_sequences.find_one_and_update(
+        {"_id": "ticket_counter"},
+        {"$inc": {"seq": 1}},
+        upsert=True, return_document=True
+    )
+    ticket_id = f"TICKJHSIT{str(sequence['seq']).zfill(1)}"
+
+    it_tickets.insert_one({
+        "id": ticket_id, "name": name, "email": email or "",
+        "phone": _clean(body.phone, 30), "empCode": _clean(body.empCode, 30),
+        "assetCode": _clean(body.assetCode, 50), "issues": issues,
+        "issueDescription": description, "reportingPartner": _clean(body.reportingPartner, 100),
+        "status": status, "assigned": assigned,
+        "itEmail": IT_EMAILS[0] if has_assignee else None,
+        "createdAt": created, "assignedAt": assigned_at, "closedAt": closed_at,
+        "remark": remark or None,
+        "manualEntry": True, "enteredBy": admin.get("empCode") or admin.get("sub")
+    })
+    return {"message": "Ticket saved", "ticketId": ticket_id}
+
 
 @app.delete("/api/it/tickets/{ticket_id}")
 async def delete_it_ticket(ticket_id: str, admin=Depends(get_current_admin)):

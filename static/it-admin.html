@@ -6,13 +6,15 @@
     <title>JHS IT Helpdesk - Admin Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="/static/it-admin.css?v=3">
+    <link rel="stylesheet" href="/static/it-admin.css?v=brand14">
 </head>
 <body>
     <div class="sidebar">
+        <img class="brand-logo sidebar-logo" src="/static/jhs-logo.webp" alt="JHS logo">
         <h3>Admin Panel</h3>
         <button id="btnAnalysis"> Analysis</button>
         <button id="btnTickets"> Tickets</button>
+        <button id="btnManual">Manual Entry</button>
         <button id="btnClose">Close</button>
         <button id="btnAssign"> Assign</button>
         <button id="btnLogout"> Logout</button>
@@ -53,8 +55,12 @@
                     <p>Closed Tickets</p>
                 </div>
                 <div class="card">
+                    <h3 id="resolutionRate">-</h3>
+                    <p>Resolution Rate</p>
+                </div>
+                <div class="card">
                     <h3 id="avgTatStat">-</h3>
-                    <p>Avg. TAT (hrs)</p>
+                    <p>Avg Resolution Time</p>
                 </div>
             </div>
 
@@ -110,7 +116,6 @@
         <section id="tickets" class="section">
             <div class="section-header-row">
                 <h2>All Tickets</h2>
-                <button id="btnDownloadExcel" class="btn-download-excel">Download Excel</button>
             </div>
             <div class="table-controls">
                 <div class="search-row">
@@ -127,6 +132,7 @@
                         </select>
                     </label>
                     <button id="btnRefresh" class="btn small">Refresh</button>
+                    <button id="btnDownloadExcel" class="btn-download-excel">Download Excel</button>
                 </div>
             </div>
             <div class="table-wrap">
@@ -262,6 +268,128 @@
         </section>
 
 
+        <!-- ===== MANUAL ENTRY SECTION ===== -->
+        <section id="manual" class="section hidden">
+            <div class="manual-card">
+                <h2>Manual Ticket Entry</h2>
+                <p class="manual-sub">For employees who did not raise a ticket themselves. Enter their details and save &mdash; the ticket appears in All Tickets, the dashboard and Excel. No email is sent.</p>
+                <form id="me_form" class="manual-form" autocomplete="off" novalidate>
+                    <div class="manual-grid">
+                        <div class="manual-field">
+                            <label for="me_name">Full Name <span class="req">*</span></label>
+                            <input type="text" id="me_name" maxlength="100">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_empCode">Employee Code</label>
+                            <input type="text" id="me_empCode" maxlength="30" placeholder="JHS0001">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_email">Email ID</label>
+                            <input type="email" id="me_email" maxlength="150" placeholder="Optional">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_phone">Contact Number</label>
+                            <input type="tel" id="me_phone" maxlength="30" placeholder="Optional">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_assetCode">IT Asset Code</label>
+                            <input type="text" id="me_assetCode" maxlength="50">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_partner">Reporting Partner</label>
+                            <select id="me_partner">
+                                <option value="">Select Reporting Partner</option>
+                                <option>Tasnim Tankiwala</option>
+                                <option>Jamal Chatriwala</option>
+                                <option>Taher Pepermintwala</option>
+                                <option>Huzefa Mala</option>
+                                <option>Sahil Shah</option>
+                                <option>Tausif Shaikh</option>
+                                <option>Samad Dhanani</option>
+                                <option>Disha Shah</option>
+                                <option>Nikhel Kochhar</option>
+                                <option>Hitesh Khandelwal</option>
+                                <option>Sunil Pathak</option>
+                                <option>Jagdish Solanki</option>
+                                <option>Narayana Rao Malla</option>
+                                <option>Pranal P</option>
+                                <option>Chandra Sekaran</option>
+                                <option>Virendra Nayyar</option>
+                                <option>Saurabh Shah</option>
+                                <option>Dhaval Thakkar</option>
+                                <option>Viranch Modi</option>
+                                <option>Shreena Panara</option>
+                                <option>Milin Parekh</option>
+                                <option>Mehul Shah</option>
+                                <option>Alpesh Vaniya</option>
+                                <option>Raj Shah</option>
+                                <option>Huzeifa Unwala</option>
+                                <option>Huzeifa Kaka</option>
+                                <option>Dipika Bisawa</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div class="manual-field full">
+                            <label>IT Issues (select all that apply) <span class="req">*</span></label>
+                            <div class="manual-checks" id="me_issues">
+                                <label><input type="checkbox" value="Hardware"> Hardware</label>
+                                <label><input type="checkbox" value="Software"> Software</label>
+                                <label><input type="checkbox" value="Network"> Network</label>
+                                <label><input type="checkbox" value="Email"> Email</label>
+                                <label><input type="checkbox" value="SharePoint Data"> SharePoint data</label>
+                                <label><input type="checkbox" value="MSD"> MSD</label>
+                                <label class="other-row">
+                                    <input type="checkbox" id="me_issueOtherChk"> Other:
+                                    <input type="text" id="me_issueOtherText" maxlength="100" placeholder="Specify other issue">
+                                </label>
+                            </div>
+                        </div>
+                        <div class="manual-field full">
+                            <label for="me_issue">IT Issue Description <span class="req">*</span></label>
+                            <textarea id="me_issue" rows="4" maxlength="2000" placeholder="Describe the IT issue..."></textarea>
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_assigned">Assigned Engineer</label>
+                            <select id="me_assigned">
+                                <option value="Unassigned">Unassigned</option>
+                                <option value="Gauhar Akhtar">Gauhar Akhtar</option>
+                                <option value="Shahnawaz Siddiqui">Shahnawaz Siddiqui</option>
+                                <option value="Pankaj Gupta">Pankaj Gupta</option>
+                                <option value="__other__">Other (type a name)</option>
+                            </select>
+                            <input type="text" id="me_assignedOther" class="hidden" maxlength="100" placeholder="Type full name">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_status">Status</label>
+                            <select id="me_status">
+                                <option value="Open">Open</option>
+                                <option value="Closed">Closed</option>
+                            </select>
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_createdAt">Raised On</label>
+                            <input type="datetime-local" id="me_createdAt">
+                            <span class="hint">Leave empty to use the current date and time.</span>
+                        </div>
+                        <div class="manual-field hidden" id="me_closedWrap">
+                            <label for="me_closedAt">Closed On</label>
+                            <input type="datetime-local" id="me_closedAt">
+                            <span class="hint">Leave empty to use the current date and time.</span>
+                        </div>
+                        <div class="manual-field full">
+                            <label for="me_remark">Remark <span class="hint">(required when Closed)</span></label>
+                            <textarea id="me_remark" rows="3" maxlength="500" placeholder="Resolution notes..."></textarea>
+                        </div>
+                    </div>
+                    <div class="manual-actions">
+                        <button type="submit" id="me_save" class="manual-btn-save">Save Ticket</button>
+                        <button type="button" id="me_clear" class="manual-btn-clear">Clear</button>
+                    </div>
+                    <div id="me_msg" class="manual-msg" role="status"></div>
+                </form>
+            </div>
+        </section>
+
         <section id="assign" class="section hidden">
             <h2>Assign Tickets</h2>
             <div class="assign-card">
@@ -309,6 +437,6 @@
   </div>
 </div>
 
-    <script src="/static/it-admin.js?v=3"></script>
+    <script src="/static/it-admin.js?v=brand14"></script>
 </body>
 </html>

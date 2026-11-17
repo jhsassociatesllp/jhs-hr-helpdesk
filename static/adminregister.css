@@ -19,7 +19,7 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f2340 50%, #d62049 100%);
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -219,3 +219,18 @@ body {
         padding: 1.75rem 1.25rem;
     }
 }
+
+
+/* ---- JHS branding ---- */
+.brand-logo {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 3px;
+    display: block;
+    margin: 0 auto 0.75rem;
+    box-shadow: 0 6px 16px rgba(15, 35, 64, 0.2);
+}
+.sidebar-logo { margin: 0.25rem auto 0.5rem; }

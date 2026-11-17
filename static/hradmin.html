@@ -10,13 +10,15 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="/static/hradmin.css">
+    <link rel="stylesheet" href="/static/hradmin.css?v=brand14">
 </head>
 <body>
     <div class="sidebar">
-        <h3> Admin Panel</h3>
+        <img class="brand-logo sidebar-logo" src="/static/jhs-logo.webp" alt="JHS logo">
+        <h3>Admin Panel</h3>
         <button id="btnAnalysis"> Analysis</button>
         <button id="btnTickets">Tickets</button>
+        <button id="btnManual">Manual Entry</button>
         <button id="btnClose"> Close</button>
         <!-- <button id="btnAssign"> Assign</button> -->
         <button id="btnLogout">Logout</button>
@@ -193,6 +195,86 @@
             </div>
         </section>
 
+        <!-- ===== MANUAL ENTRY SECTION ===== -->
+        <section id="manual" class="section hidden">
+            <div class="manual-card">
+                <h2>Manual Ticket Entry</h2>
+                <p class="manual-sub">For employees who did not raise a ticket themselves. Enter their details and save &mdash; the ticket appears in All Tickets, the dashboard and Excel. No email is sent.</p>
+                <form id="me_form" class="manual-form" autocomplete="off" novalidate>
+                    <div class="manual-grid">
+                        <div class="manual-field">
+                            <label for="me_name">Full Name <span class="req">*</span></label>
+                            <input type="text" id="me_name" maxlength="100">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_empCode">Employee Code</label>
+                            <input type="text" id="me_empCode" maxlength="30" placeholder="JHS0001">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_email">Email</label>
+                            <input type="email" id="me_email" maxlength="150" placeholder="Optional">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_phone">Phone</label>
+                            <input type="tel" id="me_phone" maxlength="30" placeholder="Optional">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_category">Category <span class="req">*</span></label>
+                            <select id="me_category">
+                                <option value="">Select category</option>
+                                <option value="PAYSLIP">PAYSLIP</option>
+                                <option value="HRMS QUERY">HRMS QUERY</option>
+                                <option value="ATTENDANCE">ATTENDANCE</option>
+                                <option value="SALARY QUERY">SALARY QUERY</option>
+                                <option value="BUDDY REFERRAL">BUDDY REFERRAL</option>
+                                <option value="OTHER">OTHER</option>
+                            </select>
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_assigned">Assigned To</label>
+                            <select id="me_assigned">
+                                <option value="Unassigned">Unassigned</option>
+                                <option value="Janhavi Gamare">Janhavi Gamare</option>
+                                <option value="Juee Pawar">Juee Pawar</option>
+                                <option value="__other__">Other (type a name)</option>
+                            </select>
+                            <input type="text" id="me_assignedOther" class="hidden" maxlength="100" placeholder="Type full name">
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_status">Status</label>
+                            <select id="me_status">
+                                <option value="Open">Open</option>
+                                <option value="Closed">Closed</option>
+                            </select>
+                        </div>
+                        <div class="manual-field">
+                            <label for="me_createdAt">Raised On</label>
+                            <input type="datetime-local" id="me_createdAt">
+                            <span class="hint">Leave empty to use the current date and time.</span>
+                        </div>
+                        <div class="manual-field hidden" id="me_closedWrap">
+                            <label for="me_closedAt">Closed On</label>
+                            <input type="datetime-local" id="me_closedAt">
+                            <span class="hint">Leave empty to use the current date and time.</span>
+                        </div>
+                        <div class="manual-field full">
+                            <label for="me_issue">Issue Description <span class="req">*</span></label>
+                            <textarea id="me_issue" rows="4" maxlength="2000" placeholder="Describe the issue..."></textarea>
+                        </div>
+                        <div class="manual-field full">
+                            <label for="me_remark">Remark <span class="hint">(required when Closed)</span></label>
+                            <textarea id="me_remark" rows="3" maxlength="500" placeholder="Resolution notes..."></textarea>
+                        </div>
+                    </div>
+                    <div class="manual-actions">
+                        <button type="submit" id="me_save" class="manual-btn-save">Save Ticket</button>
+                        <button type="button" id="me_clear" class="manual-btn-clear">Clear</button>
+                    </div>
+                    <div id="me_msg" class="manual-msg" role="status"></div>
+                </form>
+            </div>
+        </section>
+
         <!-- ===== ASSIGN SECTION (commented out) ===== -->
         <!--
         <section id="assign" class="section hidden">
@@ -236,6 +318,6 @@
         </div>
     </div>
 
-    <script src="/static/hradmin.js"></script>
+    <script src="/static/hradmin.js?v=brand14"></script>
 </body>
 </html>

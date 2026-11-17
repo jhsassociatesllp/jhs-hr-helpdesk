@@ -128,6 +128,12 @@ function authFetch(url, options = {}) {
             'Authorization': `Bearer ${token}`,
             ...(options.headers || {})
         }
+    }).then(res => {
+        // Token expired / invalid -> send the admin back to login
+        if (res.status === 401) {
+            logoutAdmin();
+        }
+        return res;
     });
 }
 
@@ -156,6 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnAnalysis')?.addEventListener('click', () => showSection('analysis'));
     document.getElementById('btnTickets')?.addEventListener('click', () => showSection('tickets'));
     document.getElementById('btnClose')?.addEventListener('click', () => showSection('closed'));
+    document.getElementById('btnManual')?.addEventListener('click', () => showSection('manual'));
+    setupManualSection();
     document.getElementById('btnAssign')?.addEventListener('click', () => showSection('assign'));
 
     // Filters
@@ -210,6 +218,7 @@ function showSection(id) {
     if (el) el.classList.remove('hidden');
     if (id === 'analysis') loadStats();
     if (id === 'tickets') loadTickets();
+    if (id === 'manual') manualPrepare();
 }
 
 // ==========================
@@ -237,6 +246,7 @@ async function loadTickets() {
         const res = await authFetch(API_URL);
         if (!res.ok) throw new Error('Failed to fetch');
         let tickets = await res.json();
+        tickets.forEach(t => { if (t.assigned) knownAssignees.add(t.assigned); });
 
         const q = document.getElementById('searchInput')?.value.toLowerCase() || '';
         const statusFilter = document.getElementById('statusFilter')?.value;
@@ -271,12 +281,16 @@ async function loadTickets() {
             );
         }
 
+        // Always keep the filtered list in sync (even when empty) so Excel export matches the table
+        filteredTickets = tickets;
+        manualGotoPage(tickets);
+
         if (!tickets.length) {
             tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;padding:3rem;color:#64748b">📭 No tickets found</td></tr>';
+            try { renderPaginationButtons(); } catch (e) {}
             return;
         }
 
-        filteredTickets = tickets;
         // Debug: log first ticket's date fields to console so you can verify format
         if (tickets.length > 0) {
             console.log('[DEBUG] Sample ticket dates:', {
@@ -310,7 +324,7 @@ function renderPaginatedTable() {
             const resolutionClass = resolutionTime !== '-' ? 'resolution-time' : 'resolution-na';
 
             return `
-                <tr>
+                <tr class="${t.id === manualHighlightId ? 'row-new' : ''}">
                     <td><strong>${escapeHtml(t.id)}</strong></td>
                     <td>${escapeHtml(t.name)}</td>
                     <td>${escapeHtml(t.email)}</td>
@@ -319,7 +333,10 @@ function renderPaginatedTable() {
                     <td>${escapeHtml(t.category)}</td>
                     <td title="${escapeHtml(t.issue)}">${escapeHtml(t.issue?.slice(0,60))}...</td>
                     <td>${statusBadge}</td>
-                    <td>${escapeHtml(t.assigned || "Unassigned")}</td>
+                    <td class="assigned-cell">
+                        <span>${escapeHtml(t.assigned || "Unassigned")}</span>
+                        <button class="edit-assign-btn" title="Edit Assigned To" onclick="editAssigned('${escapeHtml(t.id)}')">Edit</button>
+                    </td>
                     <td>${fmtDateIsoToIST(t.createdAt)}</td>
                     <td>${fmtDateIsoToIST(t.assignedAt)}</td>
                     <td>${fmtDateIsoToIST(t.closedAt)}</td>
@@ -331,6 +348,7 @@ function renderPaginatedTable() {
         }).join("");
 
     renderPaginationButtons();
+    manualFlashRow();
 }
 
 function renderPaginationButtons() {
@@ -350,6 +368,241 @@ function changePage(page) {
     if (page < 1 || page > totalPages) return;
     currentPage = page;
     renderPaginatedTable();
+}
+
+// ==========================
+// Edit "Assigned To" (name correction only)
+// ==========================
+// Names come only from tickets that already exist (no hardcoded extras)
+const knownAssignees = new Set();
+
+function closeAssignedModal() {
+    document.getElementById('assignedEditModal')?.remove();
+}
+
+function editAssigned(ticketId) {
+    const ticket = filteredTickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+    closeAssignedModal();
+
+    const current = ticket.assigned || '';
+    // Only the HR people currently present; anyone else can be typed via "Other"
+    const names = ['Janhavi Gamare', 'Juee Pawar'];
+    const options = names
+        .map(n => `<option value="${escapeHtml(n)}" ${n === current ? 'selected' : ''}>${escapeHtml(n)}</option>`)
+        .join('');
+
+    const placeholder = (!current || ![...names].includes(current))
+        ? '<option value="" selected disabled>Select name</option>' : '';
+    const overlay = document.createElement('div');
+    overlay.id = 'assignedEditModal';
+    overlay.className = 'assigned-modal-overlay';
+    overlay.innerHTML = `
+        <div class="assigned-modal" role="dialog" aria-modal="true" aria-labelledby="assignedModalTitle">
+            <h3 id="assignedModalTitle">Edit Assigned To</h3>
+            <p class="assigned-modal-sub">Ticket <strong>${escapeHtml(ticket.id)}</strong> &middot; currently: <strong>${escapeHtml(current || 'Unassigned')}</strong></p>
+            <label for="assignedSelect">Handled / resolved by</label>
+            <select id="assignedSelect">${placeholder}${options}<option value="__other__">Other (type a name)</option></select>
+            <input type="text" id="assignedOther" placeholder="Type full name" maxlength="100" style="display:none">
+            <p class="assigned-modal-note">Only the name changes. Assigned time, closed time and resolution time stay the same, and no email is sent.</p>
+            <div class="assigned-modal-actions">
+                <button type="button" class="assigned-cancel" id="assignedCancel">Cancel</button>
+                <button type="button" class="assigned-save" id="assignedSave">Save</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    const select = overlay.querySelector('#assignedSelect');
+    const other = overlay.querySelector('#assignedOther');
+    select.addEventListener('change', () => {
+        other.style.display = select.value === '__other__' ? 'block' : 'none';
+        if (select.value === '__other__') other.focus();
+    });
+    overlay.querySelector('#assignedCancel').addEventListener('click', closeAssignedModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeAssignedModal(); });
+    overlay.addEventListener('keydown', e => { if (e.key === 'Escape') closeAssignedModal(); });
+    overlay.querySelector('#assignedSave').addEventListener('click', () => saveAssigned(ticket.id, select, other));
+    select.focus();
+}
+
+async function saveAssigned(ticketId, select, other) {
+    const name = (select.value === '__other__' ? other.value : (select.value || '')).trim();
+    if (!name) { alert('Please select or type a name.'); return; }
+
+    const saveBtn = document.getElementById('assignedSave');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+    try {
+        const res = await authFetch(`/api/hr/tickets/${encodeURIComponent(ticketId)}/assigned`, {
+            method: 'PUT',
+            body: JSON.stringify({ assigned: name })
+        });
+        if (!res || !res.ok) throw new Error('Update failed');
+        knownAssignees.add(name);
+        closeAssignedModal();
+        loadTickets();
+        loadStats();
+    } catch (e) {
+        alert(`Could not update Assigned To: ${e.message}`);
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+    }
+}
+
+
+// ==========================
+// Manual Ticket Entry (admin adds a ticket for someone who did not raise it)
+// ==========================
+function manualEl(id) { return document.getElementById('me_' + id); }
+
+function manualLocalNow() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+}
+
+function manualToIso(value) {
+    if (!value) return null;
+    const d = new Date(value);
+    return isNaN(d) ? null : d.toISOString();
+}
+
+function manualShowMsg(text, type) {
+    const box = manualEl('msg');
+    if (!box) return;
+    box.textContent = text;
+    box.className = 'manual-msg ' + type;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function manualSyncStatus() {
+    const closed = manualEl('status').value === 'Closed';
+    manualEl('closedWrap').classList.toggle('hidden', !closed);
+    if (!closed) manualEl('closedAt').value = '';
+}
+
+function manualSyncAssignedOther() {
+    const other = manualEl('assigned').value === '__other__';
+    manualEl('assignedOther').classList.toggle('hidden', !other);
+    if (other) manualEl('assignedOther').focus();
+}
+
+function manualPrepare() {
+    const now = manualLocalNow();
+    manualEl('createdAt').max = now;
+    manualEl('closedAt').max = now;
+}
+
+function manualReset() {
+    manualEl('form').reset();
+    manualEl('assignedOther').classList.add('hidden');
+    manualSyncStatus();
+    const box = manualEl('msg');
+    if (box) { box.textContent = ''; box.className = 'manual-msg'; }
+    if (typeof manualAfterReset === 'function') manualAfterReset();
+}
+
+function manualAssignedValue() {
+    const sel = manualEl('assigned').value;
+    if (sel === '__other__') return manualEl('assignedOther').value.trim();
+    return sel;
+}
+
+function setupManualSection() {
+    const form = manualEl('form');
+    if (!form) return;
+    manualEl('status').addEventListener('change', manualSyncStatus);
+    manualEl('assigned').addEventListener('change', manualSyncAssignedOther);
+    manualEl('clear').addEventListener('click', manualReset);
+    form.addEventListener('submit', e => { e.preventDefault(); saveManualTicket(); });
+    manualSyncStatus();
+}
+
+
+// ---- show the freshly saved manual ticket in the Tickets section ----
+let manualHighlightId = null;
+
+function manualGotoPage(tickets) {
+    if (!manualHighlightId) return;
+    const idx = tickets.findIndex(t => t.id === manualHighlightId);
+    if (idx >= 0) currentPage = Math.floor(idx / itemsPerPage) + 1;
+}
+
+function manualFlashRow() {
+    const row = document.querySelector('#ticketTable tbody tr.row-new');
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const id = manualHighlightId;
+    setTimeout(() => {
+        row.classList.remove('row-new');
+        if (manualHighlightId === id) manualHighlightId = null;
+    }, 6000);
+}
+
+function manualToast(text) {
+    const t = document.createElement('div');
+    t.className = 'manual-toast';
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+function manualResetTicketFilters() {
+    ['searchInput', 'fromDate', 'toDate'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const st = document.getElementById('statusFilter'); if (st) st.value = 'All status';
+}
+
+function manualOpenTickets(ticketId, message) {
+    manualHighlightId = ticketId;
+    manualReset();
+    manualResetTicketFilters();
+    showSection('tickets');   // reloads the list; the new row is highlighted
+    loadStats();
+    manualToast(message);
+}
+
+async function saveManualTicket() {
+    const name = manualEl('name').value.trim();
+    const category = manualEl('category').value;
+    const issue = manualEl('issue').value.trim();
+    const status = manualEl('status').value;
+    const assigned = manualAssignedValue() || 'Unassigned';
+    const remark = manualEl('remark').value.trim();
+    const createdAt = manualToIso(manualEl('createdAt').value);
+    const closedAt = status === 'Closed' ? manualToIso(manualEl('closedAt').value) : null;
+
+    if (!name) return manualShowMsg('Full name is required.', 'error');
+    if (!category) return manualShowMsg('Please select a category.', 'error');
+    if (!issue) return manualShowMsg('Issue description is required.', 'error');
+    if (manualEl('assigned').value === '__other__' && !manualEl('assignedOther').value.trim())
+        return manualShowMsg('Please type the name of the person handling this ticket.', 'error');
+    if (status === 'Closed') {
+        if (assigned === 'Unassigned') return manualShowMsg('Select who handled the ticket before marking it Closed.', 'error');
+        if (!remark) return manualShowMsg('Remark is required for a Closed ticket.', 'error');
+    }
+    if (createdAt && closedAt && new Date(closedAt) < new Date(createdAt))
+        return manualShowMsg('Closed On cannot be before Raised On.', 'error');
+
+    const btn = manualEl('save');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    try {
+        const res = await authFetch('/api/hr/admin/manual-ticket', {
+            method: 'POST',
+            body: JSON.stringify({
+                name, category, issue, status, assigned, remark,
+                email: manualEl('email').value.trim(),
+                phone: manualEl('phone').value.trim(),
+                empCode: manualEl('empCode').value.trim(),
+                createdAt, closedAt
+            })
+        });
+        if (!res) return;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Could not save the ticket');
+        manualOpenTickets(data.ticketId, `Ticket ${data.ticketId} saved and added to Tickets`);
+    } catch (e) {
+        manualShowMsg(e.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Save Ticket';
+    }
 }
 
 async function deleteTicket(id) {
@@ -661,8 +914,8 @@ function drawHRChart(byhr) {
         data: {
             labels,
             datasets: [
-                { label: 'Open',   data: labels.map(l => byhr[l].Open   || 0), backgroundColor: 'rgba(239,68,68,0.85)',  borderRadius: 8, borderSkipped: false },
-                { label: 'Closed', data: labels.map(l => byhr[l].Closed || 0), backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 8, borderSkipped: false }
+                { label: 'Open',   data: labels.map(l => byhr[l].Open   || 0), backgroundColor: 'rgba(214,32,73,0.85)',  borderRadius: 8, borderSkipped: false },
+                { label: 'Closed', data: labels.map(l => byhr[l].Closed || 0), backgroundColor: 'rgba(30,58,95,0.85)', borderRadius: 8, borderSkipped: false }
             ]
         },
         options: {
@@ -687,7 +940,7 @@ function drawStatusDonut(open, closed) {
             labels: ['Open', 'Closed'],
             datasets: [{
                 data: [open, closed],
-                backgroundColor: ['rgba(239,68,68,0.85)', 'rgba(16,185,129,0.85)'],
+                backgroundColor: ['rgba(214,32,73,0.85)', 'rgba(30,58,95,0.85)'],
                 borderWidth: 3, borderColor: '#fff', hoverOffset: 8
             }]
         },
@@ -730,8 +983,8 @@ function drawMonthlyVolumeChart(tickets) {
         data: {
             labels,
             datasets: [
-                { label: 'Open',   data: sortedKeys.map(k => monthMap[k].Open   || 0), backgroundColor: 'rgba(239,68,68,0.75)',  borderRadius: 6, borderSkipped: false },
-                { label: 'Closed', data: sortedKeys.map(k => monthMap[k].Closed || 0), backgroundColor: 'rgba(16,185,129,0.75)', borderRadius: 6, borderSkipped: false }
+                { label: 'Open',   data: sortedKeys.map(k => monthMap[k].Open   || 0), backgroundColor: 'rgba(214,32,73,0.75)',  borderRadius: 6, borderSkipped: false },
+                { label: 'Closed', data: sortedKeys.map(k => monthMap[k].Closed || 0), backgroundColor: 'rgba(30,58,95,0.75)', borderRadius: 6, borderSkipped: false }
             ]
         },
         options: {
@@ -779,10 +1032,10 @@ function drawResolutionTimeChart(tickets) {
             datasets: [{
                 label: 'Avg Resolution Time (hrs)',
                 data: avgHours,
-                borderColor: '#7c3aed',
-                backgroundColor: 'rgba(124,58,237,0.12)',
+                borderColor: '#2c5282',
+                backgroundColor: 'rgba(214,32,73,0.12)',
                 borderWidth: 3,
-                pointBackgroundColor: '#7c3aed',
+                pointBackgroundColor: '#2c5282',
                 pointRadius: 6, pointHoverRadius: 9,
                 fill: true, tension: 0.4
             }]
@@ -811,7 +1064,7 @@ function drawCategoryChart(tickets) {
     });
 
     const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
-    const palette = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#ec4899','#14b8a6','#f97316','#8b5cf6','#84cc16'];
+    const palette = ['#1e3a5f','#d62049','#f59e0b','#0d9488','#2c5282','#b01e2e','#64748b','#c2410c','#0f2340','#65a30d'];
 
     chartRegistry['categoryChart'] = new Chart(canvas.getContext('2d'), {
         type: 'bar',
@@ -867,7 +1120,7 @@ function drawHRResolutionAvgChart(tickets) {
             datasets: [{
                 label: 'Avg Resolution Time (hrs)',
                 data: entries.map(e => e.avg),
-                backgroundColor: 'rgba(102,126,234,0.82)',
+                backgroundColor: 'rgba(30, 58, 95,0.82)',
                 borderRadius: 8, borderSkipped: false
             }]
         },
@@ -969,13 +1222,11 @@ window.addEventListener("beforeunload", function (e) {
 // Download Excel (SheetJS)
 // ==========================
 function downloadExcel() {
-    if (!filteredTickets || filteredTickets.length === 0) {
-        alert(' No ticket data to export. Please load tickets first.');
-        return;
-    }
+    // Exports exactly what the filters (search / dates / status) show; empty result => headers-only sheet
+    const exportList = filteredTickets || [];
 
     // Build rows with all columns including Resolution Time
-    const rows = filteredTickets.map(t => ({
+    const rows = exportList.map(t => ({
         'Ticket ID':        t.id || '',
         'Name':             t.name || '',
         'Email':            t.email || '',
@@ -992,7 +1243,10 @@ function downloadExcel() {
         'Remark':           t.remark || ''
     }));
 
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const ws = XLSX.utils.json_to_sheet(rows, {
+        header: ['Ticket ID','Name','Email','Phone','Emp Code','Category','Description','Status',
+                 'Assigned To','Created Time','Assigned Time','Closed Time','Resolution Time','Remark']
+    });
 
     // Column widths
     ws['!cols'] = [
@@ -1019,7 +1273,7 @@ function downloadExcel() {
         if (!ws[cellAddr]) continue;
         ws[cellAddr].s = {
             font:      { bold: true, color: { rgb: 'FFFFFF' } },
-            fill:      { fgColor: { rgb: '667EEA' } },
+            fill:      { fgColor: { rgb: '1E3A5F' } },
             alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
         };
     }
