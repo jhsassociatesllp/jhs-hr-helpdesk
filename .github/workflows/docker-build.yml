@@ -23,7 +23,7 @@ jobs:
 
       - name: Build & Push Image
         run: |
-          IMAGE_NAME=ghcr.io/jhsassociatesllp/hr-helpdesk
+          IMAGE_NAME=ghcr.io/jhsassociatesllp/jhs-hr-helpdesk
 
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             TAG="production"
@@ -32,7 +32,7 @@ jobs:
           fi
 
           echo "📦 Building: $IMAGE_NAME:$TAG"
-          docker build --no-cache -t $IMAGE_NAME:$TAG .
+          docker build --no-cache --label org.opencontainers.image.source=https://github.com/${{ github.repository }} -t $IMAGE_NAME:$TAG .
 
           echo "📤 Pushing: $IMAGE_NAME:$TAG"
           docker push $IMAGE_NAME:$TAG

@@ -173,7 +173,7 @@ jobs:
             PORT=8024
           fi
 
-          IMAGE="ghcr.io/jhsassociatesllp/hr-helpdesk:${TAG}"
+          IMAGE="ghcr.io/jhsassociatesllp/jhs-hr-helpdesk:${TAG}"
 
           ssh -p ${{ secrets.SERVER_PORT }} -o StrictHostKeyChecking=no \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
